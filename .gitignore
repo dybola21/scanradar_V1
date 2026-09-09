@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.netlify/
+.tanstack/
+.output/
+.env
+.env.*
+!.env.example
+*.log
+coverage/
+backups/

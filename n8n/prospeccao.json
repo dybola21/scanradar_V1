@@ -1,0 +1,2476 @@
+{
+  "name": "Automação de Prospecção - Cancelamento e Confirmação de Envios",
+  "nodes": [
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1rsDDI26rMRg_1qeTh7t7IGHwsKwymBUgUCYS2_tsvPQ",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ String($('Contexto da Pesquisa').first().json.prospection.sheetId) }}"
+        },
+        "options": {}
+      },
+      "id": "2502ed6e-f6a8-4157-a8ce-e39231e070ac",
+      "name": "Ler Leads (Google Sheets)1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        34544,
+        21552
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CC2JVZGlvh4WZjs2",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.all();\nconst digits = v => String(v ?? '').replace(/\\D/g, '');\nconst normalizePhone = v => {\n  let p = digits(v);\n  if (p.length === 10 || p.length === 11) p = '55' + p;\n  return p;\n};\nconst norm = v => String(v ?? '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').trim().toLowerCase();\nconst pending = new Set(['', 'pendente']);\nconst rows = input.map((item, index) => {\n  const r = item.json;\n  return {...r, nome: String(r.Nome ?? ''), telefone: String(r.Telefone ?? '').replace(/^'+/, '').trim(),\n    telefone_limpo: normalizePhone(r.Telefone), status: norm(r.Status ?? r.status),\n    empresa: [r.Bairro, [r.Cidade, r.UF].filter(Boolean).join('/')].filter(Boolean).join(', '),\n    mensagem_enviada: r['Mensagem Enviada'] ?? '', data_envio: r['Data de Envio'] ?? '',\n    row_number: Number(r.row_number) || null, _input: index};\n});\nconst hasHistory = r => {\n  const m = norm(r.mensagem_enviada);\n  return Boolean(r.data_envio) || !['', 'nao', 'false'].includes(m);\n};\nconst blocked = new Set(rows.filter(r => !pending.has(r.status) || hasHistory(r)).map(r => r.telefone_limpo).filter(Boolean));\nconst seen = new Set();\nreturn rows.map(r => {\n  const p = r.telefone_limpo;\n  const validFormat = /^55\\d{10,11}$/.test(p);\n  const elegivel = validFormat && pending.has(r.status) && !blocked.has(p) && !seen.has(p);\n  if (elegivel) seen.add(p);\n  const index = r._input; delete r._input;\n  return {json: {...r, elegivel}, pairedItem: {item: index}};\n});"
+      },
+      "id": "23b6dbee-d8b3-42a4-92e0-3102a7e54563",
+      "name": "Normalizar Campos da Planilha",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        35024,
+        21552
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "d7e2f21f-cc62-46e6-87a0-74794bb3d3c0",
+      "name": "Loop Leads (um por vez)1",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        36224,
+        21440
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://evo.noticiasnatela.blog/chat/whatsappNumbers/Vagner%20(047)",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"numbers\": [ String($json.telefone_limpo) ] } }}",
+        "options": {
+          "timeout": 20000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "63211144-99b1-48bb-b4d5-942aea7688e2",
+      "name": "Verificar Número (Evolution API)1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        37248,
+        21504
+      ],
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Evolution API Privada"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const original = $('Loop Leads (um por vez)1').item.json;\nconst response = $input.first().json;\nlet value = response.body ?? response;\nif (!Array.isArray(value)) value = value.data ?? value.result ?? value;\nconst item = Array.isArray(value) ? value[0] : value;\nif (!item || ![true, false, 'true', 'false'].includes(item.exists)) {\n  throw new Error('Resposta inesperada da Evolution na validação. O lead não foi marcado como inválido. Confira a saída HTTP.');\n}\nreturn [{json: {...original, numero_valido: item.exists === true || item.exists === 'true', jid: item.jid ?? null}, pairedItem: {item: 0}}];"
+      },
+      "id": "60c29e0b-19df-4960-8e35-badc9736ff01",
+      "name": "Extrair Resultado da Verificação1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        37424,
+        21552
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond_numero_valido",
+              "leftValue": "={{ $json.numero_valido }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "611c66ff-6795-4226-b014-dd4a988621f0",
+      "name": "Número Válido?1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        37664,
+        21552
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1rsDDI26rMRg_1qeTh7t7IGHwsKwymBUgUCYS2_tsvPQ",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ String($('Contexto da Pesquisa').first().json.prospection.sheetId) }}"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Status": "número inválido",
+            "Lead Key": "={{ $('Loop Leads (um por vez)1').item.json['Lead Key'] }}"
+          },
+          "matchingColumns": [
+            "Lead Key"
+          ],
+          "schema": [
+            {
+              "id": "Nome",
+              "displayName": "Nome",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Telefone",
+              "displayName": "Telefone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "E-mail",
+              "displayName": "E-mail",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "E-mail 2",
+              "displayName": "E-mail 2",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Website",
+              "displayName": "Website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Bairro",
+              "displayName": "Bairro",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Cidade",
+              "displayName": "Cidade",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "UF",
+              "displayName": "UF",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Mensagem Enviada",
+              "displayName": "Mensagem Enviada",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Data de Envio",
+              "displayName": "Data de Envio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Search ID",
+              "displayName": "Search ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Lead Key",
+              "displayName": "Lead Key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Presença Digital",
+              "displayName": "Presença Digital",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": true,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "1bbb948d-0166-4740-8783-6b74be8dfbc2",
+      "name": "Marcar como Inválido1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        38208,
+        21904
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CC2JVZGlvh4WZjs2",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Nome do estabelecimento: {{ $json.nome }}\nLocalização/contexto: {{ $json.empresa }}\nProduto/serviço a oferecer: {{ $('Contexto da Pesquisa').first().json.offerDescription }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "Você é um vendedor humano, informal e direto, prospectando estabelecimentos comerciais encontrados no Google Maps (ex: clínicas, salões, restaurantes). Gere UMA mensagem curta de prospecção via WhatsApp, personalizada para o estabelecimento informado. Regras: use o nome do estabelecimento de forma natural (ex: 'Vi que a [nome] fica em [local]...'), sem tratar como se fosse o nome de uma pessoa; nunca repita a mesma estrutura de frase; varie saudação, ordem das informações e emojis com moderação; no máximo 3-4 linhas; tom natural, como se um humano estivesse digitando; não use links nem termos genéricos tipo 'nossa empresa incrível'; termine com uma pergunta aberta, não um call-to-action agressivo."
+            }
+          ]
+        }
+      },
+      "id": "1e8a8f9d-9459-46ce-909b-d54de2412c91",
+      "name": "Gerar Mensagem com IA1",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        37904,
+        21408
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "glm-5.3-flash",
+          "mode": "list",
+          "cachedResultName": "glm-5.3-flash"
+        },
+        "options": {
+          "temperature": 0.9,
+          "timeout": 60000,
+          "maxRetries": 1
+        }
+      },
+      "id": "fe2d12b2-1099-47dc-9b70-d3ee2af7d331",
+      "name": "Modelo de Chat OpenAI1",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        37856,
+        21184
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "URqsUgYvklP9Bjxa",
+          "name": "Z.AI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"mensagem\": \"Oi Dybola! Vi que você trabalha com X, e imagino que otimizar Y deve fazer diferença no seu dia a dia. Faz sentido eu te mostrar como funciona?\"\n}"
+      },
+      "id": "69fde304-6953-4a39-8a57-c66eeffbef2b",
+      "name": "Analisador de Saída Estruturada1",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        38112,
+        21184
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const lead = $('Número Válido?1').item.json;\nlet out = $json.output ?? $json.text ?? $json;\nif (typeof out === 'string') {\n  const text = out.replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/, '').trim();\n  try { out = JSON.parse(text); } catch { throw new Error('A IA não retornou um objeto JSON com mensagem. Nenhum envio foi realizado.'); }\n}\nif (typeof out?.mensagem !== 'string' || !out.mensagem.trim()) {\n  throw new Error('Mensagem da IA ausente ou vazia. Nenhum envio foi realizado.');\n}\nreturn {json: {...lead, mensagem_final: out.mensagem.trim(), data_envio: new Date().toISOString()}};"
+      },
+      "id": "f01787fe-c391-4f05-9e5e-700de08d424e",
+      "name": "Montar Mensagem Final1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        38208,
+        21408
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://evo.noticiasnatela.blog/message/sendText/Vagner%20(047)",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { number: String($('Montar Mensagem Final1').item.json.telefone_limpo), text: $('Montar Mensagem Final1').item.json.mensagem_final } }}",
+        "options": {
+          "timeout": 30000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "fbad387a-8134-45d5-9b51-c92c5cd66684",
+      "name": "Enviar Mensagem (Evolution API)1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        38688,
+        21408
+      ],
+      "retryOnFail": false,
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Evolution API Privada"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1rsDDI26rMRg_1qeTh7t7IGHwsKwymBUgUCYS2_tsvPQ",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ String($('Contexto da Pesquisa').first().json.prospection.sheetId) }}"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Mensagem Enviada": "={{ $('Montar Mensagem Final1').item.json.mensagem_final }}",
+            "Data de Envio": "={{ $('Confirmar Aceite da Evolution').item.json.callback_payload.data_envio }}",
+            "Status": "enviado",
+            "Lead Key": "={{ $('Loop Leads (um por vez)1').item.json['Lead Key'] }}"
+          },
+          "matchingColumns": [
+            "Lead Key"
+          ],
+          "schema": [
+            {
+              "id": "Nome",
+              "displayName": "Nome",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Telefone",
+              "displayName": "Telefone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "E-mail",
+              "displayName": "E-mail",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "E-mail 2",
+              "displayName": "E-mail 2",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Website",
+              "displayName": "Website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Bairro",
+              "displayName": "Bairro",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Cidade",
+              "displayName": "Cidade",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "UF",
+              "displayName": "UF",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Mensagem Enviada",
+              "displayName": "Mensagem Enviada",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Data de Envio",
+              "displayName": "Data de Envio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Search ID",
+              "displayName": "Search ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Lead Key",
+              "displayName": "Lead Key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Presença Digital",
+              "displayName": "Presença Digital",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": true,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "ff84f2e2-5d18-4429-a310-3f47b4dd2227",
+      "name": "Marcar como Enviado1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        38928,
+        21408
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CC2JVZGlvh4WZjs2",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "amount": "={{ Math.floor(Math.random() * 20) + 10 }}"
+      },
+      "id": "052f7445-1e4a-49d3-bf18-7d7b6ba1f0d2",
+      "name": "Aguardar (Delay Aleatório)1",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        39648,
+        22176
+      ],
+      "webhookId": "1e34439d-c234-4715-bf52-81a2768a5b02"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i=>i.json).filter(r=>r.resultado!=='vazio');\nconst selection = $('Selecionar Lote da Pesquisa').first().json;\nconst errors = rows.filter(r=>r.callback_ok===false);\nreturn [{json:{terminalStatus:errors.length?'completed_with_errors':'completed',stopAcknowledged:true,\nsummary:{selected:selection.elegiveis,processed:rows.length,sent:rows.filter(r=>r.status_planilha==='enviado').length,invalid:rows.filter(r=>r.status_planilha==='número inválido').length,skipped:rows.filter(r=>r.resultado==='ignorado').length,excludedBeforeSend:selection.excluidosAntesDoEnvio,callbackErrors:errors.length},\nreceipts:errors.map(r=>r.callback_payload).filter(Boolean),issues:errors.map(r=>({lead_key:r.lead_key,message:r.callback_erro}))}}];"
+      },
+      "id": "576b3538-21f7-4bf0-89ba-30a4aa77f768",
+      "name": "Fim do Lote1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        39648,
+        21040
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Configuração do App').first().json.appBaseUrl + '/api/public/whatsapp-status' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {searchId:$('Contexto da Pesquisa').first().json.searchId, automationRunId:$('Contexto da Pesquisa').first().json.automationRunId, executionId:$('Contexto da Pesquisa').first().json.executionId, lead_key:$('Loop Leads (um por vez)1').item.json['Lead Key'], telefone:$('Número Válido?1').item.json.telefone, status:'número inválido', mensagem_enviada:false} }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 20000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        38448,
+        21904
+      ],
+      "id": "cab5b3de-8100-448c-9ce0-74d084097ff1",
+      "name": "Marcar como Inválido (Supabase)",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "ScanRadar Callback Privado"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Configuração do App').first().json.appBaseUrl + '/api/public/whatsapp-status' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.callback_payload }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 20000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        39168,
+        21408
+      ],
+      "id": "f92d4758-c4ba-4ddb-bf56-ac85dd94f160",
+      "name": "Marcar como Enviado (Supabase)",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "ScanRadar Callback Privado"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $('Confirmar Aceite da Evolution').item.json.callback_payload;\nconst response = $input.first().json;\nconst body = response.body ?? response;\nconst ok = !response.error && Number(response.statusCode ?? 200)<400 && body.success === true && body.searchId === payload.searchId && body.automationRunId === payload.automationRunId && String(body.executionId) === payload.executionId && body.lead_key === payload.lead_key && body.persistedStatus === 'enviado';\nreturn [{json:{resultado:'processado',lead_key:payload.lead_key,telefone:payload.telefone,status_planilha:'enviado',callback_ok:ok,callback_erro:ok?null:String(body.reason??body.message??response.error?.message??'Callback sem confirmação do escopo/status').slice(0,1000),callback_payload:payload},pairedItem:{item:0}}];"
+      },
+      "id": "cb18cd46-c46f-40b9-af74-cdffc6b15580",
+      "name": "Registrar Callback de Envio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        39408,
+        21408
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const lead = $('Número Válido?1').item.json;\nconst ctx = $('Contexto da Pesquisa').first().json;\nconst response = $json;\nconst body = response.body ?? response;\nconst failed = Boolean(response.error) || Number(response.statusCode ?? 200) >= 400 || body?.success !== true || body.searchId !== ctx.searchId || body.automationRunId !== ctx.automationRunId || String(body.executionId) !== ctx.executionId || body.lead_key !== lead['Lead Key'] || body.persistedStatus !== 'número inválido';\nconst detail = String(response.error?.message ?? response.error ?? body?.message ?? body?.error ?? 'Callback sem success=true').slice(0,1000);\nconst payload = {searchId:ctx.searchId, automationRunId:ctx.automationRunId, executionId:ctx.executionId,\n  lead_key:lead['Lead Key'], telefone:lead.telefone, status:'número inválido', mensagem_enviada:'número inválido'==='enviado'};\nif ('número inválido' === 'enviado') {payload.data_envio=lead.data_envio; payload.messageText=lead.mensagem_final;}\nreturn {json:{resultado:'processado', lead_key:lead['Lead Key'], telefone:lead.telefone, status_planilha:'número inválido',\n  callback_ok:!failed, callback_erro:failed?detail:null, callback_payload:payload}};"
+      },
+      "id": "1e13d7c5-1333-45c8-b7b1-a4296c097a62",
+      "name": "Registrar Callback de Inválido",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        38688,
+        21904
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Classificação local pelo Website. Não consulta nem altera a API do ScanRadar.\n// Categorias inconclusivas ficam para revisão; domínios desconhecidos válidos são tratados como site próprio.\nconst categorias = ['Sem link', 'Só WhatsApp', 'Só Instagram', 'Link de bio', 'Rede social',\n  'Página em plataforma', 'Link encurtado', 'Não identificado', 'Site próprio'];\nconst norm = v => String(v ?? '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').trim().toLowerCase();\nconst revisao = new Set(['Site próprio', 'Link encurtado', 'Não identificado']);\nconst grupos = [\n  ['Só WhatsApp', ['wa.me', 'whatsapp.com']],\n  ['Só Instagram', ['instagram.com', 'instagr.am']],\n  ['Link de bio', ['linktr.ee', 'bio.site', 'beacons.ai', 'bio.link', 'lnk.bio', 'taplink.cc', 'taplink.at', 'tap.bio', 'campsite.bio', 'linkin.bio', 'msha.ke']],\n  ['Rede social', ['facebook.com', 'fb.com', 'fb.me', 'tiktok.com', 'linkedin.com', 'youtube.com', 'youtu.be', 'twitter.com', 'x.com', 'pinterest.com', 'threads.net', 'threads.com']],\n  ['Página em plataforma', ['mercadolivre.com.br', 'mercadolivre.com', 'mercadolibre.com', 'elo7.com.br', 'shopee.com.br', 'ifood.com.br', 'doctoralia.com.br', 'getninjas.com.br', 'apontador.com.br']],\n  ['Link encurtado', ['bit.ly', 'tinyurl.com', 't.co', 'goo.gl', 'shorturl.at', 'cutt.ly', 'is.gd', 'rebrand.ly', 'encurtador.com.br', 'rb.gy', 't.ly']]\n];\n// Domínios abaixo podem hospedar um site completo; não liberá-los automaticamente.\nconst hospedagem = ['wixsite.com', 'wordpress.com', 'webflow.io', 'github.io', 'netlify.app', 'vercel.app', 'carrd.co', 'notion.site'];\nconst pertence = (host, domain) => host === domain || host.endsWith('.' + domain);\nfunction classificar(value) {\n  if (value == null || value === '') return {categoria: 'Sem link', dominio: ''};\n  if (typeof value !== 'string') return {categoria: 'Não identificado', dominio: ''};\n  let url = value.replace(/^'+/, '').trim();\n  if (!url) return {categoria: 'Sem link', dominio: ''};\n  if (/\\s/.test(url) || url.includes('\\\\')) return {categoria: 'Não identificado', dominio: ''};\n  if (/^[a-z][a-z0-9+.-]*:/i.test(url) && !/^https?:\\/\\//i.test(url)) {\n    return {categoria: 'Não identificado', dominio: ''};\n  }\n  url = url.replace(/^https?:\\/\\//i, '').replace(/^\\/\\//, '');\n  const authority = url.split(/[/?#]/)[0];\n  if (authority.includes('@')) return {categoria: 'Não identificado', dominio: ''};\n  const host = authority.replace(/:\\d{1,5}$/, '').replace(/\\.$/, '').toLowerCase();\n  const labels = host.split('.');\n  const valid = labels.length >= 2 && host.length <= 253\n    && labels.every(l => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(l))\n    && /^(?:[a-z]{2,63}|xn--[a-z0-9-]+)$/i.test(labels[labels.length-1]);\n  if (!valid) return {categoria: 'Não identificado', dominio: host};\n  for (const [categoria, domains] of grupos) {\n    if (domains.some(d => pertence(host, d))) return {categoria, dominio: host};\n  }\n  if (host === 'sites.google.com' || hospedagem.some(d => pertence(host, d))) {\n    return {categoria: 'Não identificado', dominio: host};\n  }\n  return {categoria: 'Site próprio', dominio: host};\n}\nconst items = $input.all();\nconst classified = items.map((item, index) => {\n  const r = item.json;\n  const inferred = classificar(r.Website);\n  // Opcional: aceita a coluna com o rótulo informado pelo app, caso ela seja adicionada no futuro.\n  const rawLabel = r['Presença Digital'] ?? r['Presenca Digital'];\n  const supplied = rawLabel == null || String(rawLabel).trim() === '' ? null\n    : categorias.find(c => norm(c) === norm(rawLabel)) ?? 'Não identificado';\n  // Evidência de revisão tem prioridade, inclusive quando a coluna diverge do link.\n  const category = supplied && revisao.has(supplied) ? supplied\n    : revisao.has(inferred.categoria) ? inferred.categoria\n    : supplied ?? inferred.categoria;\n  return {json: {...r, presenca_digital: category, dominio_identificado: inferred.dominio,\n    analise_manual: revisao.has(category),\n    motivo_analise: revisao.has(category) ? 'Presença digital: ' + category : ''},\n    pairedItem: {item: index}};\n});\n// Um mesmo telefone não pode escapar pelo registro duplicado que tem Website vazio.\nconst blocked = new Set(classified.filter(i => i.json.analise_manual)\n  .map(i => i.json.telefone_limpo).filter(Boolean));\nreturn classified.map(item => {\n  const r = item.json;\n  if (!r.analise_manual && r.telefone_limpo && blocked.has(r.telefone_limpo)) {\n    r.analise_manual = true;\n    r.motivo_analise = 'Outra linha com este telefone exige análise manual da presença digital.';\n  }\n  r.elegivel = r.elegivel === true && !r.analise_manual;\n  return item;\n});\n"
+      },
+      "id": "0f02e9d8-76a1-42fd-950d-fa0bd588ef7e",
+      "name": "Classificar Presença Digital",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        35264,
+        21552
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automacao-scanradar",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        32896,
+        21632
+      ],
+      "id": "ac778f0e-8d9d-4738-95b8-7341852fbf75",
+      "name": "Webhook - Executar Prospecção",
+      "webhookId": "a916b017-06dc-4d5a-aabd-5c9f83adb13c",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "C7k5LQXrq5WWMRfj",
+          "name": "ScanRadar Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const body = $json.body;\nconst validUUID = v => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);\nif (!body || !validUUID(body.searchId) || !validUUID(body.automationRunId)) {\n  throw new Error('Envie searchId e automationRunId válidos pelo backend autenticado do app.');\n}\nreturn {json: {searchId: body.searchId.toLowerCase(), automationRunId: body.automationRunId.toLowerCase(), executionId: String($execution.id)}};"
+      },
+      "id": "73e66c68-a443-4d5c-95f1-fbb492e77ab0",
+      "name": "Validar Solicitação do Botão",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        33136,
+        21632
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Configuração do App').first().json.appBaseUrl + '/api/public/automation-control' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {action:'claim', protocolVersion:3, searchId:$json.searchId, automationRunId:$json.automationRunId, executionId:$json.executionId} }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 20000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "8263474a-32f4-4153-a823-de06fd1d9b78",
+      "name": "Obter Autorização Exclusiva",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        33584,
+        21632
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "ScanRadar Callback Privado"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const request = $('Validar Solicitação do Botão').first().json;\nconst rawReply = $input.first().json;\nconst reply = rawReply.body ?? rawReply;\nif (reply.accepted === false) return [{json: {...request, accepted: false, reason: String(reply.reason ?? 'Execução não autorizada')}}];\nif (reply.accepted !== true || reply.searchId !== request.searchId || reply.automationRunId !== request.automationRunId || String(reply.executionId) !== request.executionId) {\n  throw new Error('Autorização do app ausente ou não corresponde a esta execução.');\n}\nif (reply.protocolVersion !== 3) throw new Error('Atualize o backend ScanRadar para o protocolo 3 antes de iniciar envios.');\nconst tab = reply.prospection;\nif (!tab || tab.schemaVersion !== 2 || tab.ready !== true || tab.spreadsheetId !== '1rsDDI26rMRg_1qeTh7t7IGHwsKwymBUgUCYS2_tsvPQ'\n  || !Number.isInteger(tab.sheetId) || tab.sheetId < 0\n  || typeof tab.sheetName !== 'string' || !tab.sheetName.trim()\n  || !Array.isArray(tab.eligibleLeadKeys) || !tab.eligibleLeadKeys.every(k => typeof k === 'string' && k.length > 0)\n  || new Set(tab.eligibleLeadKeys).size !== tab.eligibleLeadKeys.length\n  || tab.eligibleCount !== tab.eligibleLeadKeys.length) {\n  throw new Error('Aba individual inválida ou não preparada. A aba geral Leads nunca será usada como alternativa.');\n}\nreturn [{json: {...request, accepted: true, prospection: tab,\n  offerDescription: String(reply.offerDescription || 'Criação de sites e agentes de automação para empresas.')}}];"
+      },
+      "id": "abfc6349-d8da-4dda-96da-b6f3a3426857",
+      "name": "Contexto da Pesquisa",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        33824,
+        21632
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e37a2715-882f-4cf0-86d0-3088a045b08b",
+              "leftValue": "={{ $json.accepted === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "9f8021b4-2491-4b07-9c22-f8265d3b6ed5",
+      "name": "Execução Autorizada?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        34048,
+        21600
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {accepted: true, searchId: $json.searchId, automationRunId: $json.automationRunId} }}",
+        "options": {
+          "responseCode": 202
+        }
+      },
+      "id": "21cd1cf4-2dfc-4975-bb45-6fd34272d3d4",
+      "name": "Responder Aceito",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        34304,
+        21552
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {accepted: false, automationRunId: $json.automationRunId, reason: $json.reason} }}",
+        "options": {
+          "responseCode": 409
+        }
+      },
+      "id": "0104a14a-3210-443a-befe-cd1ea9c03280",
+      "name": "Responder Bloqueado",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        34304,
+        21872
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Contexto da Pesquisa').first().json;\nconst allowed = new Set(ctx.prospection.eligibleLeadKeys);\nconst seen = new Set();\nconst rows = [];\nfor (const [index, item] of $input.all().entries()) {\n  const r = item.json;\n  if (!Object.entries(r).some(([k,v]) => k !== 'row_number' && v != null && String(v).trim() !== '')) continue;\n  const key = String(r['Lead Key'] ?? '');\n  if (r['Search ID'] !== ctx.searchId || !key || !allowed.has(key) || seen.has(key)) {\n    throw new Error('Linha de outra pesquisa, Lead Key não autorizado ou duplicado. Execução interrompida antes de enviar.');\n  }\n  seen.add(key);\n  rows.push({json:r, pairedItem:{item:index}});\n}\nreturn rows.length ? rows : [{json:{__empty:true}, pairedItem:{item:0}}];"
+      },
+      "id": "b975f297-42bc-4a72-b0f2-53c470af578f",
+      "name": "Conferir Isolamento da Pesquisa",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        34784,
+        21552
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json).filter(r => !r.__empty);\nconst candidates = rows.filter(r => r.elegivel === true);\nreturn [{json:{candidates, lidos:rows.length, elegiveis:candidates.length,\n  excluidosAntesDoEnvio:rows.length-candidates.length}}];"
+      },
+      "id": "458e8f92-7d4a-4b51-841c-8a3100e25610",
+      "name": "Selecionar Lote da Pesquisa",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        35504,
+        21552
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "020aa85a-b5ea-4ccd-8bc9-505b1254584a",
+              "leftValue": "={{ $json.candidates.length > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a19c0581-b7e9-468a-b6e3-5e94b2b9423a",
+      "name": "Há Leads Elegíveis?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        35744,
+        21552
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "candidates",
+        "options": {}
+      },
+      "id": "d4a97b35-ae41-4ac2-beb0-9fec5f4f729f",
+      "name": "Separar Lote Autorizado",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        35984,
+        21440
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:{resultado:'vazio'}}];"
+      },
+      "id": "d4e7dd22-4aab-481f-bcd0-dec18a1c4417",
+      "name": "Lote Vazio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        35984,
+        21824
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Configuração do App').first().json.appBaseUrl + '/api/public/automation-control' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {action:'reserve', protocolVersion:3, searchId:$('Contexto da Pesquisa').first().json.searchId, automationRunId:$('Contexto da Pesquisa').first().json.automationRunId, executionId:$('Contexto da Pesquisa').first().json.executionId, lead_key:$json['Lead Key'], telefone:$json.telefone_limpo} }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 20000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "ffe541f3-594e-4505-b930-c4de7b54b9ca",
+      "name": "Reservar Contato no App",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        36464,
+        21632
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "ScanRadar Callback Privado"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $('Loop Leads (um por vez)1').item.json;\nconst ctx = $('Contexto da Pesquisa').first().json;\nconst raw = $input.first().json;\nconst r = raw.body ?? raw;\nif (r.protocolVersion !== 3 || r.searchId !== ctx.searchId || r.automationRunId !== ctx.automationRunId || String(r.executionId) !== ctx.executionId || typeof r.allowed !== 'boolean' || !['continue','stop'].includes(r.directive)) throw new Error('Reserva sem confirmação válida do app.');\nif (r.directive === 'stop' && !['cancelling','cancelled'].includes(r.state)) throw new Error('Controle de cancelamento inválido.');\nif (r.directive === 'continue' && r.state !== 'running') throw new Error('Reserva fora de rodada ativa.');\nreturn [{json:{...lead,reserva_permitida:r.allowed && r.directive==='continue',stop_requested:r.directive==='stop',motivo_reserva:String(r.reason??'')},pairedItem:{item:0}}];"
+      },
+      "id": "516dccf4-4cf8-4868-82fa-77f1020e6815",
+      "name": "Conferir Reserva do Contato",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        36704,
+        21632
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b41429b4-28b9-4901-b820-06730e3aced4",
+              "leftValue": "={{ $json.reserva_permitida === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ac569b4b-49b9-429a-a7f7-6ecb252acfbc",
+      "name": "Contato Autorizado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        36944,
+        21632
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return {json:{resultado:'ignorado', lead_key:$json['Lead Key'], telefone:$json.telefone,\n  motivo:$json.motivo_reserva, callback_ok:true}};"
+      },
+      "id": "43e35cb8-8005-4f3c-94b2-20fe0f12d7dc",
+      "name": "Registrar Contato Ignorado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        37184,
+        22032
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\nconst lead = $('Loop Leads (um por vez)1').item.json;\nif (row['Lead Key'] !== lead['Lead Key'] || row.Status !== 'enviado') {\n  throw new Error('A atualização da linha na aba individual não foi confirmada. Confira a planilha antes de repetir a execução.');\n}\nreturn [{json:row,pairedItem:{item:0}}];"
+      },
+      "id": "a81bfa63-cd40-4c62-b990-40542763e7ce",
+      "name": "Confirmar Status Enviado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        39056,
+        21264
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\nconst lead = $('Loop Leads (um por vez)1').item.json;\nif (row['Lead Key'] !== lead['Lead Key'] || row.Status !== 'número inválido') {\n  throw new Error('A atualização da linha na aba individual não foi confirmada. Confira a planilha antes de repetir a execução.');\n}\nreturn [{json:row,pairedItem:{item:0}}];"
+      },
+      "id": "204a9a3c-4735-4c32-81b7-2a31264aa1aa",
+      "name": "Confirmar Status Inválido",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        38336,
+        22080
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const error = $input.first().json;\nconst detail = String(error.callback_erro ?? error.error?.message ?? error.error ?? error.message ?? 'Falha durante a prospecção').slice(0,1500);\nlet receipt = error.callback_payload;\nif (!receipt) {try {receipt=$('Confirmar Aceite da Evolution').item.json.callback_payload;} catch {}}\nreturn [{json:{terminalStatus:'failed',summary:null,receipts:receipt?[receipt]:[],issues:[{message:detail,lead_key:receipt?.lead_key??null}],message:detail,stopAcknowledged:true}}];"
+      },
+      "id": "b1cf0c89-f2d5-4df2-856f-8eea9d65e496",
+      "name": "Preparar Falha da Execução",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        38816,
+        22528
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const request = $('Validar Solicitação do Botão').first().json;\nconst result = $input.first().json;\nreturn [{json:{action:'finish',protocolVersion:3,...request,status:result.terminalStatus,stopAcknowledged:result.stopAcknowledged===true,summary:result.summary??null,receipts:result.receipts??[],issues:result.issues??[],message:result.message??null}}];"
+      },
+      "id": "bf5c92f1-f521-4410-adb1-7543315bd218",
+      "name": "Preparar Conclusão da Execução",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        40016,
+        21040
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Configuração do App').first().json.appBaseUrl + '/api/public/automation-control' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 20000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "5627b91b-2863-449f-bd3c-bd544c90af77",
+      "name": "Informar Conclusão ao App",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        40256,
+        21040
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "ScanRadar Callback Privado"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $('Preparar Conclusão da Execução').first().json;\nconst raw = $input.first().json;\nconst reply = raw.body ?? raw;\nconst original = String(result.message ?? result.issues?.[0]?.message ?? '').slice(0,1500);\nconst invalid = [];\nif (reply.success !== true) invalid.push('success diferente de true');\nif (reply.protocolVersion !== 3) invalid.push('protocolVersion ausente ou diferente de 3');\nif (reply.automationRunId !== result.automationRunId) invalid.push('automationRunId divergente');\nif (!['completed','completed_with_errors','failed','cancelled'].includes(reply.state)) invalid.push('state ausente ou não terminal');\nif (invalid.length) throw new Error('Resposta de finish incompatível: '+invalid.join('; ')+'. Confira o backend publicado do app. Não liberar a trava automaticamente.'+(original?' Falha anterior: '+original:''));\nif (!['completed','cancelled'].includes(reply.state)) throw new Error('Fluxo encerrado com falha/pendências.'+(original?' Causa: '+original:' Consulte a rodada no app.')+' Não reenvie contatos incertos.');\nreturn [{json:{...result,state:reply.state,confirmed:true}}];"
+      },
+      "id": "3f2710bc-b525-4ada-82ee-7a59dc644dad",
+      "name": "Conferir Conclusão",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        40496,
+        21040
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Protocolo 3 — instalar backend antes de ativar\n1. Aplicar Prompt_ScanRadar_Cancelamento_e_Envios.md.\n2. Configuração do App: domínio publicado atual.\n3. Webhook: POST /webhook/automacao-scanradar, Header Auth existente.\n4. Conferir credenciais Google, Evolution e IA.\n5. Qualquer dono de rodada pode cancelar. O fluxo consulta controle por lead e antes de enviar; cancelamento encerra o laço.\n6. App registra aceite Evolution antes da planilha. Callback falho encerra o lote e tenta reconciliação no finish.\n7. Enviado significa aceito pela API, não entregue/lido.\n8. Sem retry automático do envio Evolution.",
+        "height": 760,
+        "width": 780
+      },
+      "id": "62868247-d841-4f27-bce9-482b82eb0042",
+      "name": "Como Ativar o Botão",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        33104,
+        20720
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Use o domínio PUBLICADO do ScanRadar. Não é a URL do n8n.\nconst appBaseUrl = 'https://configure-seu-scanradar.invalid';\nif (appBaseUrl.endsWith('.invalid')) throw new Error('Configure o domínio publicado do ScanRadar antes de executar.');\nif (!/^https:\\/\\/[^/?#]+$/.test(appBaseUrl)) throw new Error('Configure somente a origem HTTPS publicada do app, sem barra final.');\nreturn [{json:{...$input.first().json, appBaseUrl}}];"
+      },
+      "name": "Configuração do App",
+      "id": "05e53494-b400-4042-ae85-04f7dfb976f8",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        33360,
+        21632
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Configuração do App').first().json.appBaseUrl + '/api/public/automation-control' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {action:'check', protocolVersion:3, searchId:$('Contexto da Pesquisa').first().json.searchId, automationRunId:$('Contexto da Pesquisa').first().json.automationRunId, executionId:$('Contexto da Pesquisa').first().json.executionId} }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 20000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "29c8eba4-2d78-4616-aa8e-1578ec500e15",
+      "name": "Consultar Cancelamento",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        34096,
+        21792
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "ScanRadar Callback Privado"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Contexto da Pesquisa').first().json;\nconst raw = $input.first().json;\nconst r = raw.body ?? raw;\nif (r.protocolVersion !== 3 || r.searchId !== ctx.searchId || r.automationRunId !== ctx.automationRunId || String(r.executionId) !== ctx.executionId || !['continue','stop'].includes(r.directive)) throw new Error('Resposta de controle inválida. Nenhum próximo contato será enviado.');\nif (r.directive === 'continue' && r.state !== 'running') throw new Error('Estado incompatível com continuação.');\nif (r.directive === 'stop' && !['cancelling','cancelled'].includes(r.state)) throw new Error('Rodada encerrada ou fora do escopo.');\nreturn [{json:{...$('Loop Leads (um por vez)1').item.json, stop_requested:r.directive==='stop'},pairedItem:{item:0}}];"
+      },
+      "name": "Conferir Controle da Rodada",
+      "id": "99cbd3ea-639a-4c60-9ed7-16a62799b310",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        34304,
+        21728
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b41429b4-28b9-4901-b820-06730e3aced4",
+              "leftValue": "={{ $json.stop_requested === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "4d0bb0d9-51a1-4765-bdd8-c267e4d89397",
+      "name": "Cancelamento Solicitado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        34512,
+        21728
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b41429b4-28b9-4901-b820-06730e3aced4",
+              "leftValue": "={{ $json.stop_requested === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "620f3244-3d8b-4095-a2d6-7b03f3a422bc",
+      "name": "Reserva Interrompida?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        34912,
+        21728
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Configuração do App').first().json.appBaseUrl + '/api/public/automation-control' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {action:'begin_send', protocolVersion:3, searchId:$('Contexto da Pesquisa').first().json.searchId, automationRunId:$('Contexto da Pesquisa').first().json.automationRunId, executionId:$('Contexto da Pesquisa').first().json.executionId, lead_key:$json['Lead Key'], telefone:$json.telefone_limpo, attemptKey:$('Contexto da Pesquisa').first().json.executionId+':'+$json['Lead Key']} }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 20000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "7fae4e6d-880c-41c5-85ea-97d7ea3bc0d4",
+      "name": "Autorizar Início do Envio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        35504,
+        21376
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "ScanRadar Callback Privado"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Contexto da Pesquisa').first().json;\nconst lead = $('Montar Mensagem Final1').item.json;\nconst raw = $input.first().json;\nconst r = raw.body ?? raw;\nif (r.protocolVersion !== 3 || r.searchId !== ctx.searchId || r.automationRunId !== ctx.automationRunId || String(r.executionId) !== ctx.executionId || typeof r.allowed !== 'boolean') throw new Error('Início do envio não autorizado pelo app.');\nif (r.directive === 'stop' && r.allowed === false && ['cancelling','cancelled'].includes(r.state)) return [{json:{...lead,stop_requested:true},pairedItem:{item:0}}];\nif (r.directive !== 'continue' || r.state !== 'running' || r.allowed !== true || r.lead_key !== lead['Lead Key'] || r.attemptKey !== ctx.executionId+':'+lead['Lead Key']) throw new Error('Permissão de envio ausente ou divergente.');\nreturn [{json:{...lead,stop_requested:false},pairedItem:{item:0}}];"
+      },
+      "name": "Conferir Permissão de Envio",
+      "id": "16e99f3a-5b7c-4a83-892a-f6351c9b73d4",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        35728,
+        21424
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b41429b4-28b9-4901-b820-06730e3aced4",
+              "leftValue": "={{ $json.stop_requested === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "642b5fd7-653b-4f1b-842d-08b7e4c811c5",
+      "name": "Cancelar Antes do Envio?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        35904,
+        21520
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $('Montar Mensagem Final1').item.json;\nconst ctx = $('Contexto da Pesquisa').first().json;\nconst response = $input.first().json;\nconst body = response.body ?? response;\nconst msg = body.data ?? body;\nconst id = msg.key?.id;\nif (response.error || Number(response.statusCode ?? 200)>=400 || typeof id !== 'string' || !id.trim() || msg.key?.fromMe !== true || ['ERROR','FAILED'].includes(String(msg.status).toUpperCase())) throw new Error('Evolution não confirmou o aceite com key.id/fromMe. Resultado incerto: não reenviar automaticamente.');\nconst callback_payload = {searchId:ctx.searchId,automationRunId:ctx.automationRunId,executionId:ctx.executionId,lead_key:lead['Lead Key'],telefone:lead.telefone_limpo,status:'enviado',mensagem_enviada:true,data_envio:new Date().toISOString(),messageText:lead.mensagem_final,messageId:id};\nreturn [{json:{...lead,callback_payload},pairedItem:{item:0}}];"
+      },
+      "name": "Confirmar Aceite da Evolution",
+      "id": "fda46b61-4756-471a-8bb1-85a5ad9aad28",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        36336,
+        21536
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:$('Registrar Callback de Envio').item.json,pairedItem:{item:0}}];"
+      },
+      "name": "Recuperar Registro de Envio",
+      "id": "68c0af18-d9d3-40a7-8889-ffc090ced9c8",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        36848,
+        21424
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b41429b4-28b9-4901-b820-06730e3aced4",
+              "leftValue": "={{ $json.callback_ok === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "fd1ad886-0eae-4f3d-8723-00c58de053e0",
+      "name": "Callback Persistido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        37104,
+        21632
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:$('Registrar Callback de Inválido').item.json,pairedItem:{item:0}}];"
+      },
+      "name": "Recuperar Registro de Inválido",
+      "id": "929be2af-0d65-4164-b2ca-1de92b0d0b3e",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        36912,
+        22032
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b41429b4-28b9-4901-b820-06730e3aced4",
+              "leftValue": "={{ $json.callback_ok === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "55a1ce3a-ecfe-487e-a090-57fcc4492202",
+      "name": "Callback Inválido Persistido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        37104,
+        22128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:{terminalStatus:'cancelled',summary:null,receipts:[],issues:[],message:'Cancelamento reconhecido no fluxo. Nenhum próximo envio será iniciado.',stopAcknowledged:true}}];"
+      },
+      "name": "Preparar Cancelamento Confirmado",
+      "id": "7b7929bd-5e20-4517-9e6e-c34b48835b03",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        36112,
+        22432
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - Executar Prospecção": {
+      "main": [
+        [
+          {
+            "node": "Validar Solicitação do Botão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Solicitação do Botão": {
+      "main": [
+        [
+          {
+            "node": "Configuração do App",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obter Autorização Exclusiva": {
+      "main": [
+        [
+          {
+            "node": "Contexto da Pesquisa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contexto da Pesquisa": {
+      "main": [
+        [
+          {
+            "node": "Execução Autorizada?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execução Autorizada?": {
+      "main": [
+        [
+          {
+            "node": "Responder Aceito",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder Bloqueado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Responder Aceito": {
+      "main": [
+        [
+          {
+            "node": "Ler Leads (Google Sheets)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler Leads (Google Sheets)1": {
+      "main": [
+        [
+          {
+            "node": "Conferir Isolamento da Pesquisa",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conferir Isolamento da Pesquisa": {
+      "main": [
+        [
+          {
+            "node": "Normalizar Campos da Planilha",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar Campos da Planilha": {
+      "main": [
+        [
+          {
+            "node": "Classificar Presença Digital",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classificar Presença Digital": {
+      "main": [
+        [
+          {
+            "node": "Selecionar Lote da Pesquisa",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Selecionar Lote da Pesquisa": {
+      "main": [
+        [
+          {
+            "node": "Há Leads Elegíveis?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Há Leads Elegíveis?": {
+      "main": [
+        [
+          {
+            "node": "Separar Lote Autorizado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Lote Vazio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar Lote Autorizado": {
+      "main": [
+        [
+          {
+            "node": "Loop Leads (um por vez)1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lote Vazio": {
+      "main": [
+        [
+          {
+            "node": "Fim do Lote1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Leads (um por vez)1": {
+      "main": [
+        [
+          {
+            "node": "Fim do Lote1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Consultar Cancelamento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reservar Contato no App": {
+      "main": [
+        [
+          {
+            "node": "Conferir Reserva do Contato",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conferir Reserva do Contato": {
+      "main": [
+        [
+          {
+            "node": "Reserva Interrompida?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contato Autorizado?": {
+      "main": [
+        [
+          {
+            "node": "Verificar Número (Evolution API)1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar Contato Ignorado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar Contato Ignorado": {
+      "main": [
+        [
+          {
+            "node": "Aguardar (Delay Aleatório)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Número (Evolution API)1": {
+      "main": [
+        [
+          {
+            "node": "Extrair Resultado da Verificação1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair Resultado da Verificação1": {
+      "main": [
+        [
+          {
+            "node": "Número Válido?1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Número Válido?1": {
+      "main": [
+        [
+          {
+            "node": "Gerar Mensagem com IA1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Marcar como Inválido (Supabase)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar Mensagem com IA1": {
+      "main": [
+        [
+          {
+            "node": "Montar Mensagem Final1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar Mensagem Final1": {
+      "main": [
+        [
+          {
+            "node": "Autorizar Início do Envio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Mensagem (Evolution API)1": {
+      "main": [
+        [
+          {
+            "node": "Confirmar Aceite da Evolution",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar como Enviado1": {
+      "main": [
+        [
+          {
+            "node": "Confirmar Status Enviado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar como Inválido1": {
+      "main": [
+        [
+          {
+            "node": "Confirmar Status Inválido",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar como Enviado (Supabase)": {
+      "main": [
+        [
+          {
+            "node": "Registrar Callback de Envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar como Inválido (Supabase)": {
+      "main": [
+        [
+          {
+            "node": "Registrar Callback de Inválido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar Callback de Envio": {
+      "main": [
+        [
+          {
+            "node": "Marcar como Enviado1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar Callback de Inválido": {
+      "main": [
+        [
+          {
+            "node": "Marcar como Inválido1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aguardar (Delay Aleatório)1": {
+      "main": [
+        [
+          {
+            "node": "Loop Leads (um por vez)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirmar Status Enviado": {
+      "main": [
+        [
+          {
+            "node": "Recuperar Registro de Envio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirmar Status Inválido": {
+      "main": [
+        [
+          {
+            "node": "Recuperar Registro de Inválido",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Modelo de Chat OpenAI1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Gerar Mensagem com IA1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analisador de Saída Estruturada1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Gerar Mensagem com IA1",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fim do Lote1": {
+      "main": [
+        [
+          {
+            "node": "Preparar Conclusão da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Falha da Execução": {
+      "main": [
+        [
+          {
+            "node": "Preparar Conclusão da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Conclusão da Execução": {
+      "main": [
+        [
+          {
+            "node": "Informar Conclusão ao App",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Informar Conclusão ao App": {
+      "main": [
+        [
+          {
+            "node": "Conferir Conclusão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuração do App": {
+      "main": [
+        [
+          {
+            "node": "Obter Autorização Exclusiva",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar Cancelamento": {
+      "main": [
+        [
+          {
+            "node": "Conferir Controle da Rodada",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conferir Controle da Rodada": {
+      "main": [
+        [
+          {
+            "node": "Cancelamento Solicitado?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cancelamento Solicitado?": {
+      "main": [
+        [
+          {
+            "node": "Preparar Cancelamento Confirmado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reservar Contato no App",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reserva Interrompida?": {
+      "main": [
+        [
+          {
+            "node": "Preparar Cancelamento Confirmado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Contato Autorizado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Autorizar Início do Envio": {
+      "main": [
+        [
+          {
+            "node": "Conferir Permissão de Envio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conferir Permissão de Envio": {
+      "main": [
+        [
+          {
+            "node": "Cancelar Antes do Envio?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cancelar Antes do Envio?": {
+      "main": [
+        [
+          {
+            "node": "Preparar Cancelamento Confirmado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar Mensagem (Evolution API)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirmar Aceite da Evolution": {
+      "main": [
+        [
+          {
+            "node": "Marcar como Enviado (Supabase)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recuperar Registro de Envio": {
+      "main": [
+        [
+          {
+            "node": "Callback Persistido?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Callback Persistido?": {
+      "main": [
+        [
+          {
+            "node": "Aguardar (Delay Aleatório)1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recuperar Registro de Inválido": {
+      "main": [
+        [
+          {
+            "node": "Callback Inválido Persistido?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Callback Inválido Persistido?": {
+      "main": [
+        [
+          {
+            "node": "Aguardar (Delay Aleatório)1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Cancelamento Confirmado": {
+      "main": [
+        [
+          {
+            "node": "Preparar Conclusão da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "nodeGroups": []
+}

@@ -1,0 +1,23 @@
+{
+  "name": "ScanRadar — Prospecção via Google Maps",
+  "short_name": "ScanRadar",
+  "description": "Encontre e extraia empresas do Google Maps com o radar de prospecção do ScanRadar.",
+  "id": "/dashboard",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#07111F",
+  "theme_color": "#07111F",
+  "lang": "pt-BR",
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Nova busca", "short_name": "Buscar", "url": "/search" },
+    { "name": "Histórico", "short_name": "Histórico", "url": "/history" }
+  ]
+}

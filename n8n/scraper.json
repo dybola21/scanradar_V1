@@ -1,0 +1,1816 @@
+{
+  "name": "Scrapper Google Maps - ScanRadar Callback Async - Italo",
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d1d99906-6658-48e9-8889-0f8ebe19b7e5",
+              "leftValue": "={{ $json.requestType }}",
+              "rightValue": "connection_test",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "927fd8ab-9da9-4409-963d-b42bee6b3965",
+      "name": "É teste de conexão?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -8624,
+        3712
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: { success: true, requestType: 'connection_test', message: 'Conexão com o n8n confirmada.' } };"
+      },
+      "id": "25c057bf-06a0-4975-b6e1-39b0602d4038",
+      "name": "Teste de conexão recebido",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -8384,
+        3488
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://configure-seu-scanradar.invalid/api/public/results",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {searchId: $json.searchId, status: 'completed', totalLeads: $json.totalLeads, leads: $json.leads, sheetName: $json.sheetName, sheetUrl: $json.sheetUrl, message: null, prospection: $json.prospection, integrationErrors: $json.errosSincronizacao || []} }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 20000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "c756eaa6-c3f0-4891-a14a-43b3062646ae",
+      "name": "Enviar resultados ao ScanRadar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -2000,
+        3504
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "ScanRadar Callback Privado"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Instalação independente\n\nConfigure o domínio do app em Enviar resultados ao ScanRadar e selecione a credencial ScanRadar Callback Privado.\n\nCada pesquisa prepara a aba completa e a aba individual de prospecção. Os envios dependem do botão autenticado do app.\n\nLeia docs/INSTALACAO.md antes de publicar. Não deixe duas versões ativas no mesmo caminho de webhook.",
+        "height": 500,
+        "width": 620
+      },
+      "id": "f2765f7d-83a6-4796-8c17-563192c9b492",
+      "name": "Configuração do Callback",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -9104,
+        2912
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const itens = $input.all();\n\nreturn [{\n  json: {\n    registrosProcessados: itens.length,\n    leituraUnica: true\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5376,
+        3184
+      ],
+      "id": "c27c9fa1-b743-4417-88ac-b5d2ed1a6e8c",
+      "name": "Consolidar antes da leitura1"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"bairros\": [\n    \"Batel\",\n    \"Centro\",\n    \"Água Verde\",\n    \"Santa Felicidade\",\n    \"Cabral\"\n  ]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -7184,
+        4064
+      ],
+      "id": "6cd61cd8-9626-4b86-bf62-eaae840141e0",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "glm-5.3-flash",
+          "mode": "list",
+          "cachedResultName": "glm-5.3-flash"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -7536,
+        4064
+      ],
+      "id": "a7806e12-ed86-4d70-b184-574e244879fb",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "URqsUgYvklP9Bjxa",
+          "name": "Z.AI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "site_elegivel",
+              "leftValue": "={{ /^https?:\\/\\//i.test(String($json.Website || '')) && !/(?:bit\\.ly|doctoralia|whatsapp|instagram|facebook|encurtador|wa\\.me)/i.test(String($json.Website || '')) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -5616,
+        3680
+      ],
+      "id": "0f925395-8f60-4a9f-b968-99216d2edefe",
+      "name": "Tem Website?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/maps",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": []
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $('Definir Nome da Aba').first().json.termoBusca }} no {{ $json.bairro }} - {{ $('Definir Nome da Aba').first().json.cidade }} - {{ $('Definir Nome da Aba').first().json.uf }}"
+            },
+            {
+              "name": "hl",
+              "value": "pt-br"
+            }
+          ]
+        },
+        "options": {
+          "redirect": {
+            "redirect": {}
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -6576,
+        3680
+      ],
+      "id": "a0a788d7-e513-4538-9bbe-c9ac543a7193",
+      "name": "Busca Google",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Serper API Privada"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let out = $input.first().json.output;\nif (typeof out === 'string') out = JSON.parse(out);\nif (!out || !Array.isArray(out.bairros)) throw new Error('A IA não retornou o array bairros.');\nconst bairros = [...new Set(out.bairros.filter(b => typeof b === 'string').map(b => b.trim()).filter(Boolean))].slice(0, 5);\nreturn bairros.length ? bairros.map(bairro => ({json: {bairro}, pairedItem: {item: 0}}))\n  : [{json: {semBairros: true}, pairedItem: {item: 0}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -7056,
+        3792
+      ],
+      "id": "ad1181d0-21db-4035-870a-1644fd21a701",
+      "name": "Trata Dados"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1Cjb339FMzOqVRUkrU6LFkbth7K_lk8f9Pc0B1wFfWqw",
+          "mode": "list",
+          "cachedResultName": "Scrapper Maps",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Cjb339FMzOqVRUkrU6LFkbth7K_lk8f9Pc0B1wFfWqw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('Definir Nome da Aba').first().json.sheetName }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Nome": "={{ String($json[\"Nome\"] ?? '') }}",
+            "Telefone": "={{ String($json[\"Telefone\"] ?? '') }}",
+            "Bairro": "={{ String($json[\"Bairro\"] ?? '') }}",
+            "Cidade": "={{ String($json[\"Cidade\"] ?? '') }}",
+            "UF": "={{ String($json[\"UF\"] ?? '') }}",
+            "Endereço": "={{ String($json[\"Endereço\"] ?? '') }}",
+            "Place ID": "={{ String($json[\"Place ID\"] ?? '') }}",
+            "Website": "={{ String($json[\"Website\"] ?? '') }}",
+            "E-mail": "={{ String($json[\"E-mail\"] ?? '') }}",
+            "E-mail2": "={{ String($json[\"E-mail2\"] ?? '') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Nome",
+              "displayName": "Nome",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Telefone",
+              "displayName": "Telefone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Bairro",
+              "displayName": "Bairro",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Cidade",
+              "displayName": "Cidade",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "UF",
+              "displayName": "UF",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Endereço",
+              "displayName": "Endereço",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Place ID",
+              "displayName": "Place ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Website",
+              "displayName": "Website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "E-mail",
+              "displayName": "E-mail",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "E-mail2",
+              "displayName": "E-mail2",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        -5616,
+        3184
+      ],
+      "id": "9ad788a8-45b6-427c-b4f6-22fe0c393b1f",
+      "name": "Add Row",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CC2JVZGlvh4WZjs2",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## ScanRadar → n8n → ScanRadar\n\nWebhook autenticado: POST /webhook/google-maps-scraper.\nBody: requestType=search, searchId (UUID), termo, cidade e uf.\nResposta HTTP inicial imediata; resultados enviados depois por callback.\nrequestType=connection_test confirma recebimento; não valida banco/callback.\nX-Callback-Secret original preservado. Nenhuma chamada externa foi executada durante a correção.\n",
+        "height": 420,
+        "width": 600
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -8096,
+        2912
+      ],
+      "id": "7d1795ae-2dc2-4852-a80d-5109341307f9",
+      "name": "Nota - Integração ScanRadar"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1Cjb339FMzOqVRUkrU6LFkbth7K_lk8f9Pc0B1wFfWqw",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('Definir Nome da Aba').first().json.sheetName }}",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "detectAutomatically"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        -5136,
+        3184
+      ],
+      "id": "f612e963-5cac-4375-ae8d-0f0241215fbf",
+      "name": "Ler Resultado da Pesquisa",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CC2JVZGlvh4WZjs2",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(item => item.json || {}).filter(row => String(row.Nome ?? row.name ?? row.title ?? '').trim());\nconst meta = $('Definir Nome da Aba').first().json;\nconst created = $('Criar Aba da Pesquisa').first().json || {};\nconst sheetId = created.properties?.sheetId ?? created.sheetId ?? null;\n\nif (!meta.searchId) {\n  throw new Error('searchId ausente: o callback não pode ser associado à busca do ScanRadar.');\n}\n\nconst normalize = (value) => String(value ?? '')\n  .normalize('NFD')\n  .replace(/[\\u0300-\\u036f]/g, '')\n  .toLowerCase()\n  .replace(/\\s+/g, ' ')\n  .trim();\n\nconst stableHash = (value) => {\n  let hash = 2166136261;\n  for (let index = 0; index < value.length; index += 1) {\n    hash ^= value.charCodeAt(index);\n    hash = Math.imul(hash, 16777619);\n  }\n  return (hash >>> 0).toString(16).padStart(8, '0');\n};\n\nconst leads = rows.map((row) => {\n  const name = row.Nome ?? row.name ?? row.title ?? '';\n  const phone = String(row.Telefone ?? row.phone ?? row.phoneNumber ?? '').replace(/^'/, '');\n  const neighborhood = row.Bairro ?? row.neighborhood ?? row.bairro ?? '';\n  const city = row.Cidade ?? row.city ?? row.cidade ?? meta.cidade ?? '';\n  const state = row.UF ?? row.state ?? row.uf ?? meta.uf ?? '';\n  const address = row['Endereço'] ?? row.address ?? [neighborhood, city, state].filter(Boolean).join(', ');\n  const placeId = row['Place ID'] ?? row.place_id ?? row.placeId ?? '';\n  const website = row.Website ?? row.website ?? '';\n  const emails = [row['E-mail'], row['E-mail2'], row.email]\n    .filter(Boolean)\n    .map(String)\n    .filter((value, index, list) => list.indexOf(value) === index);\n  const fallbackIdentity = [name, address, phone].map(normalize).join('|');\n  const leadKey = placeId ? String(placeId) : `hash_${stableHash(fallbackIdentity)}`;\n\n  return {\n    lead_key: leadKey,\n    place_id: placeId || null,\n    name: String(name),\n    title: String(name),\n    phone: phone || null,\n    phone_number: phone || null,\n    address: address || null,\n    neighborhood: neighborhood || null,\n    city: city || null,\n    state: state || null,\n    website: website || null,\n    email: emails[0] || null,\n    emails\n  };\n});\n\nreturn [{\n  json: {\n    searchId: meta.searchId,\n    status: 'completed',\n    totalLeads: leads.length,\n    leads,\n    sheetName: meta.sheetName,\n    sheetUrl: sheetId ? `${meta.spreadsheetUrl}#gid=${sheetId}` : meta.spreadsheetUrl,\n    message: null\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4656,
+        3504
+      ],
+      "id": "a3478d7a-42be-4ce9-8c41-bef802ba57b5",
+      "name": "Preparar Resposta para ScanRadar"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const lead = $('Loop Over Items7').item.json;\nconst input = typeof $json.data === 'string' ? $json.data : '';\nconst blacklist = new Set(['example.com', 'exemplo.com', 'test.com', 'teste.com', 'email.com', 'emailteste.com', 'dominio.com', 'meudominio.com', 'domain.com']);\nconst found = [...new Set((input.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/g) || []).map(e => e.toLowerCase()))]\n  .filter(e => !/\\.(jpeg|jpg|png|gif|webp|svg)$/i.test(e) && !blacklist.has(e.split('@')[1]));\nconst emails = found.slice(0, 2);\nreturn {json: {...lead, emails, 'E-mail': emails[0] ?? '', 'E-mail2': emails[1] ?? '',\n  coleta_site_erro: $json.error ? 'Falha de acesso ao website; lead preservado.' : null}};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5136,
+        3600
+      ],
+      "id": "2a1c79bd-075f-459f-9383-c1d218617ac9",
+      "name": "Extrai E-mails",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.Website }}",
+        "options": {
+          "redirect": {
+            "redirect": {
+              "maxRedirects": 5
+            }
+          },
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -5376,
+        3600
+      ],
+      "id": "a85761af-ba21-4284-ae0b-c54c36a24ee2",
+      "name": "Scrape Site",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -5856,
+        3584
+      ],
+      "id": "0c78ed46-0162-491d-8098-371b3c70d86d",
+      "name": "Loop Over Items7"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "google-maps-scraper",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -9104,
+        3712
+      ],
+      "id": "f39b0ae7-d468-4017-99c5-25e71b3a32eb",
+      "name": "Webhook - ScanRadar",
+      "webhookId": "ec5b214c-b3c1-479d-a66b-c229ddb92b31",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "C7k5LQXrq5WWMRfj",
+          "name": "ScanRadar Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const envelope = $json || {};\nconst payload = (envelope.body && typeof envelope.body === 'object') ? envelope.body : envelope;\nconst headers = (envelope.headers && typeof envelope.headers === 'object') ? envelope.headers : {};\n\nconst requestType = String(\n  payload.requestType ?? payload.request_type ?? (payload.test === true ? 'connection_test' : 'search')\n).trim().toLowerCase();\n\nconst searchId = String(\n  payload.searchId ?? payload.search_id ?? headers['x-idempotency-key'] ?? headers['X-Idempotency-Key'] ?? ''\n).trim().toLowerCase();\n\nif (requestType === 'connection_test') {\n  return {\n    json: {\n      requestType,\n      searchId: searchId || null,\n      connectionTest: true,\n      receivedAt: new Date().toISOString()\n    }\n  };\n}\n\nif (requestType !== 'search') {\n  throw new Error('requestType inválido. Use search ou connection_test.');\n}\n\nif (!searchId) {\n  throw new Error('O campo searchId (ou o header X-Idempotency-Key) é obrigatório.');\n}\n\nif (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(searchId)) {\n  throw new Error('searchId deve ser um UUID válido.');\n}\n\nlet termo = payload.termo ?? payload.termoBusca ?? payload.nicho ?? payload['Termo da Busca'] ?? payload.term ?? '';\nlet cidade = payload.cidade ?? payload.Cidade ?? '';\nlet uf = payload.uf ?? payload.UF ?? '';\n\ntermo = String(termo).trim();\ncidade = String(cidade).trim();\nuf = String(uf).trim().toUpperCase();\n\nif (!uf) {\n  const match = cidade.match(/\\s*[-,/]\\s*([A-Za-z]{2})$/);\n  if (match) {\n    uf = match[1].toUpperCase();\n    cidade = cidade.replace(match[0], '').trim();\n  }\n}\n\nif (!termo) throw new Error('O campo termo é obrigatório.');\nif (!cidade) throw new Error('O campo cidade é obrigatório.');\nif (!uf || !/^[A-Z]{2}$/.test(uf)) {\n  throw new Error('O campo uf é obrigatório e deve conter 2 letras, por exemplo: RJ.');\n}\n\nfunction cleanPart(value) {\n  return value\n    .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n    .replace(/[\\\\\\/:*?\\[\\]]/g, '-')\n    .replace(/\\s+/g, ' ')\n    .trim();\n}\n\nconst idempotencySuffix = ` - ${searchId}`;\nconst readableName = `${cleanPart(termo)} - ${cleanPart(cidade)} - ${uf}`;\nconst baseSheetName = `${readableName.slice(0, 100 - idempotencySuffix.length)}${idempotencySuffix}`;\n\nreturn {\n  json: {\n    requestType,\n    searchId,\n    requestId: searchId,\n    termoBusca: termo,\n    cidade,\n    uf,\n    baseSheetName,\n    requestedAt: new Date().toISOString()\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -8864,
+        3712
+      ],
+      "id": "db164a7b-b8de-410f-8996-c70290502593",
+      "name": "Preparar Pesquisa"
+    },
+    {
+      "parameters": {
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Cjb339FMzOqVRUkrU6LFkbth7K_lk8f9Pc0B1wFfWqw",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "fields",
+              "value": "sheets.properties"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -8384,
+        3792
+      ],
+      "id": "f233ac70-14f9-4d05-8b57-63da7bb981e3",
+      "name": "Listar Abas Existentes",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CC2JVZGlvh4WZjs2",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const input = $json;\nconst prep = $('Preparar Pesquisa').first().json;\nconst base = prep.baseSheetName;\nconst existing = (input.sheets || []).map(sheet => sheet.properties?.title || '').filter(Boolean);\nconst names = new Set(existing.map(name => name.trim().toLowerCase()));\n\n// A aba contém o searchId completo. Como a consulta às abas\n// acontece antes da extração, ela funciona como trava persistente contra reenvio\n// acidental do mesmo searchId neste workflow.\nif (names.has(base.trim().toLowerCase())) {\n  throw new Error(`Busca duplicada: o searchId ${prep.searchId} já possui uma aba de processamento.`);\n}\n\nreturn {\n  json: {\n    ...prep,\n    sheetName: base,\n    spreadsheetId: '1Cjb339FMzOqVRUkrU6LFkbth7K_lk8f9Pc0B1wFfWqw',\n    spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/1Cjb339FMzOqVRUkrU6LFkbth7K_lk8f9Pc0B1wFfWqw/edit'\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -8144,
+        3792
+      ],
+      "id": "920c9783-f8f5-4855-a64e-0cd0d0298c3a",
+      "name": "Definir Nome da Aba"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "documentId": {
+          "__rl": true,
+          "value": "1Cjb339FMzOqVRUkrU6LFkbth7K_lk8f9Pc0B1wFfWqw",
+          "mode": "id"
+        },
+        "title": "={{ $json.sheetName }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        -7904,
+        3792
+      ],
+      "id": "e39168a8-25da-4714-b84c-74ae4fd0fe42",
+      "name": "Criar Aba da Pesquisa",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CC2JVZGlvh4WZjs2",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ 'https://sheets.googleapis.com/v4/spreadsheets/1Cjb339FMzOqVRUkrU6LFkbth7K_lk8f9Pc0B1wFfWqw/values/' + encodeURIComponent($('Definir Nome da Aba').first().json.sheetName) + '!A1:J1?valueInputOption=RAW' }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"values\":[[\"Nome\",\"Telefone\",\"Bairro\",\"Cidade\",\"UF\",\"Endereço\",\"Place ID\",\"Website\",\"E-mail\",\"E-mail2\"]]}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -7664,
+        3792
+      ],
+      "id": "b469d1cd-9146-408c-9d9a-d706478a478e",
+      "name": "Criar Cabeçalho da Aba",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CC2JVZGlvh4WZjs2",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Cidade para buscar os bairros: {{ $('Definir Nome da Aba').first().json.cidade }} - {{ $('Definir Nome da Aba').first().json.uf }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=Você é um especialista em geografia urbana, divisão territorial e localização de municípios brasileiros.\n\nSua única tarefa é receber uma cidade brasileira e retornar bairros, sub-bairros, localidades urbanas ou regiões reconhecidas que pertençam REALMENTE ao município informado.\n\nEsta resposta será utilizada automaticamente em pesquisas no Google Maps, portanto a PRECISÃO GEOGRÁFICA é extremamente importante.\n\nVocê possui acesso a uma ferramenta de PESQUISA NA WEB.\n\nO uso dessa ferramenta é OBRIGATÓRIO antes de gerar a resposta final.\n\nNÃO responda utilizando apenas seu conhecimento interno ou memória do treinamento.\n\n## OBJETIVO\n\nPrimeiro, identifique corretamente:\n\n* MUNICÍPIO;\n* ESTADO;\n* UF;\n* PAÍS.\n\npresentes na entrada atual.\n\nDepois, utilize obrigatoriamente a pesquisa na web para encontrar e validar bairros, sub-bairros, localidades urbanas ou regiões pertencentes ao município.\n\nApós pesquisar e validar as informações, selecione até 5 localidades que:\n\n* estejam realmente dentro dos limites do município informado;\n* pertençam realmente ao estado/UF informado;\n* sejam reconhecidas como localidades reais;\n* possam ser encontradas ou reconhecidas geograficamente no Google Maps;\n* tenham presença urbana, residencial ou comercial;\n* sejam úteis para buscas locais de empresas;\n* ajudem a distribuir uma pesquisa do Google Maps por diferentes partes do município.\n\n## PESQUISA NA WEB OBRIGATÓRIA\n\nAntes de responder, você DEVE utilizar a ferramenta de pesquisa na web disponível.\n\nNÃO confie exclusivamente no seu conhecimento interno.\n\nPesquise informações específicas sobre o município recebido na execução atual.\n\nUtilize consultas equivalentes a:\n\n* bairros de [MUNICÍPIO] [UF];\n* localidades de [MUNICÍPIO] [UF];\n* distritos e bairros de [MUNICÍPIO] [UF];\n* divisão territorial de [MUNICÍPIO] [UF];\n* [NOME DA LOCALIDADE] [MUNICÍPIO] [UF].\n\nEssas consultas são apenas exemplos de estratégia de pesquisa. Adapte as pesquisas conforme necessário para obter maior precisão.\n\n## FONTES E VALIDAÇÃO\n\nSempre que possível, dê prioridade a informações provenientes de fontes confiáveis, como:\n\n1. site oficial da prefeitura do município;\n2. órgãos públicos municipais ou estaduais;\n3. IBGE;\n4. documentos oficiais de divisão territorial;\n5. páginas governamentais;\n6. bases de CEP ou endereçamento;\n7. mapas e serviços geográficos;\n8. outras fontes confiáveis encontradas na pesquisa.\n\nNão considere automaticamente correto um bairro apenas porque apareceu em um único resultado de busca.\n\nSempre que houver dúvida, faça outra pesquisa para confirmar.\n\nPara localidades com risco de confusão com cidades vizinhas, procure confirmar explicitamente a combinação:\n\n\"[LOCALIDADE] + [MUNICÍPIO] + [UF]\"\n\n## VALIDAÇÃO OBRIGATÓRIA DE CADA LOCALIDADE\n\nAntes de incluir CADA bairro ou localidade na resposta final, valide utilizando as informações encontradas na pesquisa:\n\n1. Esta localidade realmente existe?\n2. Ela pertence ao município informado nesta execução?\n3. Ela pertence ao estado/UF informado?\n4. Não pertence a um município vizinho?\n5. Não estou confundindo a localidade com outra de nome semelhante?\n6. Não estou confundindo região metropolitana com limite municipal?\n7. O nome é suficientemente reconhecido para ser utilizado em uma pesquisa no Google Maps?\n8. Existem evidências suficientes na pesquisa para considerar essa localização confiável?\n\nSe qualquer uma dessas verificações gerar dúvida relevante, NÃO utilize essa localidade.\n\nPesquise outra.\n\n## REGRA FUNDAMENTAL\n\nPESQUISAR → VALIDAR → COMPARAR → SELECIONAR → RESPONDER.\n\nNunca faça:\n\nMEMÓRIA DO MODELO → SUPOSIÇÃO → RESPOSTA.\n\nA pesquisa na web deve acontecer ANTES da escolha definitiva dos bairros.\n\n## PROIBIDO INVENTAR\n\nNUNCA invente uma localidade apenas para completar os 5 resultados.\n\nSe você encontrar apenas 4 localidades suficientemente comprovadas, retorne somente 4.\n\nÉ preferível retornar menos localidades corretas do que completar a lista com informações incertas.\n\n## MUITO IMPORTANTE\n\nO município recebido na entrada atual é sempre a autoridade geográfica principal da pesquisa.\n\nNunca utilize bairros de:\n\n* municípios vizinhos;\n* cidades próximas;\n* capitais próximas;\n* outros municípios da mesma região metropolitana;\n* cidades com nomes parecidos;\n* outros estados.\n\nPertencer à mesma região metropolitana NÃO significa pertencer ao mesmo município.\n\n## EXEMPLO EXPLICATIVO\n\nDuque de Caxias, Nova Iguaçu, São João de Meriti, Belford Roxo e Rio de Janeiro podem estar geograficamente próximos, porém são MUNICÍPIOS DIFERENTES.\n\nSe a entrada recebida for:\n\n\"Duque de Caxias RJ\"\n\nsomente localidades comprovadamente pertencentes ao município de Duque de Caxias - RJ podem ser retornadas.\n\nUma localidade pertencente ao município do Rio de Janeiro, Nova Iguaçu, São João de Meriti, Belford Roxo ou qualquer outro município deve ser descartada.\n\nATENÇÃO:\n\n\"Duque de Caxias RJ\" é SOMENTE UM EXEMPLO EXPLICATIVO.\n\nNÃO trate Duque de Caxias como cidade fixa, cidade padrão, preferência ou localização principal deste prompt.\n\nEm cada nova execução, ignore os municípios apresentados nos exemplos e analise EXCLUSIVAMENTE a entrada recebida naquela execução.\n\nPor exemplo:\n\nSe a entrada atual for:\n\nCampinas SP\n\npesquise e analise exclusivamente Campinas - SP.\n\nSe for:\n\nRecife PE\n\npesquise e analise exclusivamente Recife - PE.\n\nSe for:\n\nContagem MG\n\npesquise e analise exclusivamente Contagem - MG.\n\nOs exemplos existem SOMENTE para explicar as regras e nunca devem influenciar a localização de uma execução diferente.\n\n## BAIRROS, SUB-BAIRROS E LOCALIDADES\n\nNão se limite apenas aos bairros mais famosos ou ao Centro.\n\nQuando houver comprovação geográfica suficiente, você pode utilizar:\n\n* bairros oficiais;\n* sub-bairros reconhecidos;\n* localidades urbanas;\n* regiões locais amplamente reconhecidas;\n* núcleos urbanos;\n* áreas pertencentes a distritos do próprio município;\n* distritos que funcionem como localidades reconhecidas e úteis para pesquisa.\n\nTodos, sem exceção, precisam pertencer ao município informado.\n\nQuando o município possuir vários distritos ou regiões administrativas, procure distribuir os resultados entre diferentes partes do território.\n\nEvite retornar cinco localidades extremamente próximas se existirem outras regiões comercialmente relevantes e comprovadamente pertencentes ao município.\n\n## DISTRIBUIÇÃO TERRITORIAL\n\nDepois de validar a existência das localidades, procure selecionar resultados que ajudem a cobrir diferentes partes do município.\n\nA prioridade NÃO é simplesmente encontrar os \"5 bairros mais famosos\".\n\nA prioridade é fornecer pontos geográficos:\n\n* reais;\n* comprovados;\n* reconhecidos;\n* comercialmente úteis;\n* territorialmente distribuídos.\n\nPor exemplo, quando existirem localidades confiáveis em diferentes distritos do município, prefira uma distribuição entre esses distritos em vez de concentrar todos os resultados na região central.\n\nEntretanto, NUNCA sacrifique precisão geográfica apenas para melhorar a distribuição territorial.\n\n## NOMES GENÉRICOS\n\nTenha cuidado especial com nomes muito comuns, como:\n\n* Vila Nova;\n* Santa Maria;\n* São José;\n* Bela Vista;\n* Jardim América;\n* Centro;\n* Santa Helena;\n* Primavera;\n* Vila São João.\n\nEsses nomes existem em muitos municípios brasileiros.\n\nSomente utilize uma localidade desse tipo quando a pesquisa confirmar claramente que ela pertence ao município da execução atual.\n\nNão assuma pertencimento apenas pelo nome.\n\n## NÃO CONFUNDA\n\nMUNICÍPIO ≠ DISTRITO ≠ BAIRRO ≠ SUB-BAIRRO ≠ MUNICÍPIO VIZINHO ≠ REGIÃO METROPOLITANA.\n\nUm distrito pertencente ao município pode ser utilizado quando representar uma localização real, reconhecida e útil para pesquisa no Google Maps.\n\nUma região pertencente a outro município deve ser descartada, mesmo que fique muito próxima geograficamente.\n\n## EM CASO DE CONFLITO ENTRE FONTES\n\nSe os resultados encontrados forem contraditórios:\n\n1. priorize fontes oficiais;\n2. faça novas pesquisas;\n3. pesquise especificamente a localidade juntamente com município e UF;\n4. compare diferentes fontes;\n5. descarte a localidade caso ainda não seja possível confirmar seu pertencimento com alta confiança.\n\nNunca resolva uma dúvida geográfica apenas por suposição.\n\n## PRIORIDADE ABSOLUTA\n\nA ordem de prioridade é:\n\n1. Correção geográfica.\n2. Evidência encontrada na pesquisa web.\n3. Pertencimento comprovado ao município.\n4. Pertencimento correto ao estado/UF.\n5. Reconhecimento da localização.\n6. Utilidade para pesquisa no Google Maps.\n7. Distribuição territorial.\n\nCorreção geográfica é mais importante do que quantidade.\n\n## ANTES DA RESPOSTA FINAL\n\nFaça internamente esta conferência para CADA resultado:\n\n\"Encontrei evidências na pesquisa web de que [LOCALIDADE] pertence realmente a [MUNICÍPIO] - [UF]?\"\n\nSe SIM e houver alta confiança, a localidade pode permanecer.\n\nSe NÃO ou houver dúvida significativa, remova-a e pesquise outra.\n\nSomente depois dessa validação produza o JSON final.\n\n## SAÍDA\n\nRetorne EXCLUSIVAMENTE um JSON válido neste formato:\n\n```json\n{\n  \"bairros\": [\n    \"Localidade 1\",\n    \"Localidade 2\",\n    \"Localidade 3\",\n    \"Localidade 4\",\n    \"Localidade 5\"\n  ]\n}\n```\n\nNão escreva explicações.\n\nNão escreva comentários.\n\nNão informe as pesquisas realizadas.\n\nNão informe as fontes na resposta final.\n\nNão utilize Markdown.\n\nNão exponha seu raciocínio interno.\n\nNão coloque município, estado ou UF junto ao nome de cada bairro.\n\nNão adicione nenhum campo além de \"bairros\".\n\nRetorne somente o JSON.\n\n## USO ECONÔMICO DA FERRAMENTA DE BUSCA\n\nVocê tem um limite de iterações (pensar + pesquisar) nesta tarefa. Use-as com sabedoria:\n\n1. PRIORIZE 1 ou 2 buscas AMPLAS logo no início, do tipo \"bairros de [MUNICÍPIO] [UF]\" ou \"divisão territorial de [MUNICÍPIO] [UF]\" - esse tipo de busca geralmente já retorna vários bairros de uma vez (páginas de prefeitura, Wikipédia, IBGE), resolvendo a maior parte da tarefa de uma vez só.\n2. NÃO pesquise cada candidato individualmente por padrão. Só faça uma busca extra e específica para um nome pontual se, depois da busca ampla, ainda restar dúvida real sobre ele.\n3. Assim que tiver confiança suficiente em até 5 localidades (mesmo que sejam menos de 5), PARE de pesquisar e responda no formato estruturado final. Não continue buscando à toa.\n4. Se você perceber que está se aproximando do limite de iterações sem ainda ter finalizado, priorize fechar a resposta com as localidades já confirmadas até aquele momento, em vez de arriscar não entregar nenhuma resposta.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        -7424,
+        3792
+      ],
+      "id": "09a1ef51-ae06-4858-ade8-edea816be9df",
+      "name": "Gera Bairros"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconst seen = new Set();\nconst unique = [];\nlet duplicatesRemoved = 0;\n\nfor (const item of items) {\n  const lead = item.json || {};\n\n  const key =\n    String(\n      lead['Place ID'] ||\n      lead.place_id ||\n      lead.placeId ||\n      lead.Telefone ||\n      lead.phone ||\n      `${lead.Nome || lead.name || lead.title}-${lead.Endereço || lead.address || ''}`\n    ).trim();\n\n  if (!key || seen.has(key)) {\n    duplicatesRemoved++;\n    continue;\n  }\n\n  seen.add(key);\n  unique.push({\n    json: lead\n  });\n}\n\nreturn unique;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4896,
+        3184
+      ],
+      "id": "2a567510-d3ae-4f0d-b656-9001cc3b6bf3",
+      "name": "Deduplicar Leads antes do Callback"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1rsDDI26rMRg_1qeTh7t7IGHwsKwymBUgUCYS2_tsvPQ",
+          "mode": "list",
+          "cachedResultName": "planilha_leads_scanradar",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1rsDDI26rMRg_1qeTh7t7IGHwsKwymBUgUCYS2_tsvPQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('Contexto da Aba de Prospecção').first().json.prospection.sheetName }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Nome": "={{ $json.Nome }}",
+            "Telefone": "={{ $json.Telefone }}",
+            "Bairro": "={{ $json.Bairro }}",
+            "Cidade": "={{ $json.Cidade }}",
+            "UF": "={{ $json.UF }}",
+            "Website": "={{ $json.Website }}",
+            "E-mail": "={{ $json['E-mail'] }}",
+            "E-mail 2": "={{ $json['E-mail2'] }}",
+            "Search ID": "={{ $json[\"Search ID\"] }}",
+            "Lead Key": "={{ $json[\"Lead Key\"] }}",
+            "Presença Digital": "={{ $json[\"Presença Digital\"] }}"
+          },
+          "matchingColumns": [
+            "Lead Key"
+          ],
+          "schema": [
+            {
+              "id": "Nome",
+              "displayName": "Nome",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Telefone",
+              "displayName": "Telefone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "E-mail",
+              "displayName": "E-mail",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "E-mail 2",
+              "displayName": "E-mail 2",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Website",
+              "displayName": "Website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Bairro",
+              "displayName": "Bairro",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Cidade",
+              "displayName": "Cidade",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "UF",
+              "displayName": "UF",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Mensagem Enviada",
+              "displayName": "Mensagem Enviada",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Data de Envio",
+              "displayName": "Data de Envio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Search ID",
+              "displayName": "Search ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Lead Key",
+              "displayName": "Lead Key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Presença Digital",
+              "displayName": "Presença Digital",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": true,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -2720,
+        3248
+      ],
+      "id": "da1f276d-4c39-4e04-a1a4-239ab8afef86",
+      "name": "Sincronizar Leads na Prospecção",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CC2JVZGlvh4WZjs2",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "content": "## Prospecção separada por resultado — contrato v2\n\nCada pesquisa cria uma aba na planilha de prospecção com o MESMO nome da aba de pesquisa, incluindo searchId COMPLETO.\nNão grava mais na aba geral Leads.\nAs colunas Search ID e Lead Key garantem o vínculo. Status/histórico não são sobrescritos na sincronização.\nO filtro de Presença Digital continua excluindo site próprio, links encurtados e inconclusivos da prospecção.\n\nO callback /api/public/results agora inclui prospection (schemaVersion 2, ready, spreadsheetId, sheetId, sheetName, sheetUrl, eligibleCount, eligibleLeadKeys).\nO app deve armazenar os metadados associados a searchId e só habilitar o botão se ready=true e houver pendentes.\nNenhum envio é disparado pelo scraper.\n\nIMPORTANTE: implemente primeiro o prompt ScanRadar que acompanha os JSONs.\nSe a aba falhar, os leads completos ainda são enviados ao app, mas ready=false bloqueia a automação.\nPesquisas antigas sem os metadados v2 não podem usar a aba geral: refaça a pesquisa para criar sua aba individual.\nNão exclui nem migra dados antigos. Não reutilize searchId de uma pesquisa já criada.\n",
+        "height": 650,
+        "width": 760
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -4688,
+        2176
+      ],
+      "id": "bc753608-c7b6-4247-974a-9239bd145c58",
+      "name": "Nota - Sincronização Prospecção"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Pesquisa no Google (via Serper.dev) para confirmar bairros, distritos e localidades reais de um município brasileiro. Use esta ferramenta para validar se uma localidade realmente pertence à cidade informada antes de incluí-la na resposta final. Pode ser chamada mais de uma vez com consultas diferentes.",
+        "method": "POST",
+        "url": "https://google.serper.dev/search",
+        "sendHeaders": true,
+        "parametersHeaders": {
+          "values": [
+            {
+              "name": "X-API-KEY",
+              "valueProvider": "fieldValue",
+              "value": "PREENCHA_SERPER_API_KEY_SOMENTE_NO_N8N"
+            },
+            {
+              "name": "Content-Type",
+              "valueProvider": "fieldValue",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "parametersBody": {
+          "values": [
+            {
+              "name": "q"
+            },
+            {
+              "name": "hl",
+              "valueProvider": "fieldValue",
+              "value": "pt-br"
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        -7360,
+        4064
+      ],
+      "id": "e14f5e88-c00e-48b9-a511-474b5a8fbb04",
+      "name": "Buscar na Web (Serper)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "5c3e290b-ae27-49e2-b5cc-6613b0c8f4c9",
+              "leftValue": "={{ !$json.semBairros }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b338452b-5269-4a7f-9c85-72551d8b6b87",
+      "name": "Há Bairros?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -6816,
+        3792
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const meta = $('Definir Nome da Aba').first().json;\nconst bairros = $('Trata Dados').all();\nconst norm = v => String(v ?? '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().replace(/\\s+/g, ' ').trim();\nconst byKey = new Map();\nfor (const [index, input] of $input.all().entries()) {\n  const response = input.json.body ?? input.json;\n  if (!Array.isArray(response.places)) throw new Error('Serper não retornou places como array. Confira Busca Google.');\n  for (const place of response.places) {\n    const name = String(place.title ?? place.name ?? '').trim();\n    if (!name) continue;\n    const phone = String(place.phoneNumber ?? '').replace(/^'+/, '').trim();\n    const address = String(place.address ?? '');\n    const placeId = String(place.placeId ?? place.place_id ?? '');\n    const key = placeId || [name, address, phone.replace(/\\D/g, '')].map(norm).join('|');\n    const row = {Nome: name, Telefone: phone, Bairro: bairros[index]?.json.bairro ?? '',\n      Cidade: meta.cidade, UF: meta.uf, 'Endereço': address, 'Place ID': placeId,\n      Website: String(place.website ?? '').trim(), 'E-mail': '', 'E-mail2': ''};\n    if (!byKey.has(key)) byKey.set(key, {json: row, pairedItem: {item: index}});\n    else {\n      const existing = byKey.get(key).json;\n      for (const field of ['Telefone', 'Website', 'Endereço']) if (!existing[field] && row[field]) existing[field] = row[field];\n    }\n  }\n}\nreturn byKey.size ? [...byKey.values()] : [{json: {semLeads: true}, pairedItem: {item: 0}}];"
+      },
+      "id": "7142f9d5-b32c-4b1a-a1ea-2c24e6724585",
+      "name": "Normalizar e Deduplicar Resultados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -6336,
+        3680
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "71b9a00f-025d-4284-9585-b0491b6aca94",
+              "leftValue": "={{ !$json.semLeads }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1d5fb9df-43dc-4521-8d57-cbbf6d6d96b9",
+      "name": "Há Leads?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -6096,
+        3680
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return {json: {...$json, emails: []}};"
+      },
+      "id": "fa1c078b-3fd4-404e-8577-16e81c258da3",
+      "name": "Preservar Lead sem Website",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5376,
+        3904
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mesmo classificador usado na Automação de Prospecção com Presença Digital.\n// Filtra somente leadsProspecao. result.leads e o callback completo são preservados.\nfunction classificarItens(rowsInput) {\n  const $input = {all: () => rowsInput};\n// Classificação local pelo Website. Não consulta nem altera a API do ScanRadar.\n// Categorias inconclusivas ficam para revisão; domínios desconhecidos válidos são tratados como site próprio.\nconst categorias = ['Sem link', 'Só WhatsApp', 'Só Instagram', 'Link de bio', 'Rede social',\n  'Página em plataforma', 'Link encurtado', 'Não identificado', 'Site próprio'];\nconst norm = v => String(v ?? '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').trim().toLowerCase();\nconst revisao = new Set(['Site próprio', 'Link encurtado', 'Não identificado']);\nconst grupos = [\n  ['Só WhatsApp', ['wa.me', 'whatsapp.com']],\n  ['Só Instagram', ['instagram.com', 'instagr.am']],\n  ['Link de bio', ['linktr.ee', 'bio.site', 'beacons.ai', 'bio.link', 'lnk.bio', 'taplink.cc', 'taplink.at', 'tap.bio', 'campsite.bio', 'linkin.bio', 'msha.ke']],\n  ['Rede social', ['facebook.com', 'fb.com', 'fb.me', 'tiktok.com', 'linkedin.com', 'youtube.com', 'youtu.be', 'twitter.com', 'x.com', 'pinterest.com', 'threads.net', 'threads.com']],\n  ['Página em plataforma', ['mercadolivre.com.br', 'mercadolivre.com', 'mercadolibre.com', 'elo7.com.br', 'shopee.com.br', 'ifood.com.br', 'doctoralia.com.br', 'getninjas.com.br', 'apontador.com.br']],\n  ['Link encurtado', ['bit.ly', 'tinyurl.com', 't.co', 'goo.gl', 'shorturl.at', 'cutt.ly', 'is.gd', 'rebrand.ly', 'encurtador.com.br', 'rb.gy', 't.ly']]\n];\n// Domínios abaixo podem hospedar um site completo; não liberá-los automaticamente.\nconst hospedagem = ['wixsite.com', 'wordpress.com', 'webflow.io', 'github.io', 'netlify.app', 'vercel.app', 'carrd.co', 'notion.site'];\nconst pertence = (host, domain) => host === domain || host.endsWith('.' + domain);\nfunction classificar(value) {\n  if (value == null || value === '') return {categoria: 'Sem link', dominio: ''};\n  if (typeof value !== 'string') return {categoria: 'Não identificado', dominio: ''};\n  let url = value.replace(/^'+/, '').trim();\n  if (!url) return {categoria: 'Sem link', dominio: ''};\n  if (/\\s/.test(url) || url.includes('\\\\')) return {categoria: 'Não identificado', dominio: ''};\n  if (/^[a-z][a-z0-9+.-]*:/i.test(url) && !/^https?:\\/\\//i.test(url)) {\n    return {categoria: 'Não identificado', dominio: ''};\n  }\n  url = url.replace(/^https?:\\/\\//i, '').replace(/^\\/\\//, '');\n  const authority = url.split(/[/?#]/)[0];\n  if (authority.includes('@')) return {categoria: 'Não identificado', dominio: ''};\n  const host = authority.replace(/:\\d{1,5}$/, '').replace(/\\.$/, '').toLowerCase();\n  const labels = host.split('.');\n  const valid = labels.length >= 2 && host.length <= 253\n    && labels.every(l => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(l))\n    && /^(?:[a-z]{2,63}|xn--[a-z0-9-]+)$/i.test(labels[labels.length-1]);\n  if (!valid) return {categoria: 'Não identificado', dominio: host};\n  for (const [categoria, domains] of grupos) {\n    if (domains.some(d => pertence(host, d))) return {categoria, dominio: host};\n  }\n  if (host === 'sites.google.com' || hospedagem.some(d => pertence(host, d))) {\n    return {categoria: 'Não identificado', dominio: host};\n  }\n  return {categoria: 'Site próprio', dominio: host};\n}\nconst items = $input.all();\nconst classified = items.map((item, index) => {\n  const r = item.json;\n  const inferred = classificar(r.Website);\n  // Opcional: aceita a coluna com o rótulo informado pelo app, caso ela seja adicionada no futuro.\n  const rawLabel = r['Presença Digital'] ?? r['Presenca Digital'];\n  const supplied = rawLabel == null || String(rawLabel).trim() === '' ? null\n    : categorias.find(c => norm(c) === norm(rawLabel)) ?? 'Não identificado';\n  // Evidência de revisão tem prioridade, inclusive quando a coluna diverge do link.\n  const category = supplied && revisao.has(supplied) ? supplied\n    : revisao.has(inferred.categoria) ? inferred.categoria\n    : supplied ?? inferred.categoria;\n  return {json: {...r, presenca_digital: category, dominio_identificado: inferred.dominio,\n    analise_manual: revisao.has(category),\n    motivo_analise: revisao.has(category) ? 'Presença digital: ' + category : ''},\n    pairedItem: {item: index}};\n});\n// Um mesmo telefone não pode escapar pelo registro duplicado que tem Website vazio.\nconst blocked = new Set(classified.filter(i => i.json.analise_manual)\n  .map(i => i.json.telefone_limpo).filter(Boolean));\nreturn classified.map(item => {\n  const r = item.json;\n  if (!r.analise_manual && r.telefone_limpo && blocked.has(r.telefone_limpo)) {\n    r.analise_manual = true;\n    r.motivo_analise = 'Outra linha com este telefone exige análise manual da presença digital.';\n  }\n  r.elegivel = r.elegivel === true && !r.analise_manual;\n  return item;\n});\n\n}\n\nconst result = $input.first().json;\nif (!Array.isArray(result.leads)) throw new Error('Resultado da pesquisa sem array leads.');\nconst normalizePhone = value => {\n  let p = String(value ?? '').replace(/\\D/g, '');\n  if (p.length === 10 || p.length === 11) p = '55' + p;\n  return p;\n};\n// Classifique antes de deduplicar: um registro vazio não pode liberar o telefone\n// compartilhado com outro estabelecimento que exige análise manual.\nconst classified = classificarItens(result.leads.map(lead => ({json: {\n  ...lead, Website: lead.website, telefone_limpo: normalizePhone(lead.phone), elegivel: true\n}})));\nconst seen = new Set();\nconst leadsProspecao = [];\nconst leadsAnaliseManual = [];\nconst porPresenca = {};\nlet semTelefone = 0, telefoneIncompativel = 0, repetidos = 0;\nfor (const item of classified) {\n  const lead = item.json;\n  porPresenca[lead.presenca_digital] = (porPresenca[lead.presenca_digital] || 0) + 1;\n  if (lead.analise_manual) {\n    leadsAnaliseManual.push({lead_key: lead.lead_key ?? null, nome: lead.name,\n      telefone: lead.phone ?? null, website: lead.website ?? null,\n      presenca_digital: lead.presenca_digital, motivo: lead.motivo_analise});\n    continue;\n  }\n  const phone = lead.telefone_limpo;\n  if (!phone) {semTelefone++; continue;}\n  if (!/^55\\d{10,11}$/.test(phone)) {telefoneIncompativel++; continue;}\n  if (seen.has(phone)) {repetidos++; continue;}\n  seen.add(phone);\n  const formatted = '+55 ' + phone.slice(2, 4) + ' ' + phone.slice(4, -4) + '-' + phone.slice(-4);\n  leadsProspecao.push({'Search ID': result.searchId, 'Lead Key': lead.lead_key, 'Presença Digital': lead.presenca_digital, Nome: lead.name, Telefone: formatted, Bairro: lead.neighborhood ?? '',\n    Cidade: lead.city ?? '', UF: lead.state ?? '', Website: lead.website ?? '',\n    'E-mail': lead.emails?.[0] ?? '', 'E-mail2': lead.emails?.[1] ?? ''});\n}\nreturn [{json: {...result, leadsProspecao, leadsAnaliseManual,\n  sincronizacao: {aptos: leadsProspecao.length, semTelefone, telefoneIncompativel,\n    telefonesRepetidos: repetidos, bloqueadosPresencaDigital: leadsAnaliseManual.length,\n    porPresenca, totalPesquisa: result.leads.length}}}];\n"
+      },
+      "id": "5e922478-4ade-40d8-aa4d-fe3b7333adb2",
+      "name": "Preparar Sincronização com Telefone",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4416,
+        3504
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "0bdc5fe6-d10c-435d-860c-0e4d83cef864",
+              "leftValue": "={{ $json.leadsProspecao.length > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "42a0ea3f-c21c-4cb0-8231-6c2f312f09e0",
+      "name": "Há Telefones para Sincronizar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -3200,
+        3392
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "leadsProspecao",
+        "options": {}
+      },
+      "id": "aba0fb4a-00e9-4b5c-90a5-5e7e99e9fcad",
+      "name": "Separar Leads com Telefone",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -2960,
+        3248
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $('Contexto da Aba de Prospecção').first().json;\nconst errors = $input.all().filter(i => i.json.error).map(i => String(i.json.error?.message ?? i.json.error).slice(0, 1000));\nreturn [{json: {...base, prospection: {...base.prospection, ready: errors.length === 0}, errosSincronizacao: errors}}];"
+      },
+      "id": "b8e07b1f-8afd-4194-baa0-5dd0e1d9334c",
+      "name": "Consolidar Resultado da Sincronização",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2480,
+        3248
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $('Preparar Callback com Aba Individual').first().json;\nconst syncErrors = base.errosSincronizacao ?? [];\nconst response = $input.first().json;\nconst body = response.body ?? response;\nconst callbackFailed = Boolean(response.error) || Number(response.statusCode ?? 200) >= 400 || body?.success === false || Boolean(body?.error);\nconst raw = response.error?.message ?? response.error ?? body?.message ?? body?.error ?? '';\nconst detail = typeof raw === 'string' ? raw.slice(0, 1000) : 'Erro retornado pelo aplicativo';\nreturn [{json: {searchId: base.searchId, totalLeads: base.totalLeads, sheetUrl: base.sheetUrl,\n  prospection: base.prospection, sincronizacao: base.sincronizacao, errosSincronizacao: syncErrors,\n  callback_ok: !callbackFailed, callback_erro: callbackFailed ? detail : null,\n  temFalhas: callbackFailed || syncErrors.length > 0}}];"
+      },
+      "id": "d540734a-882d-4466-9f1a-28af5f62079b",
+      "name": "Resumo Final da Pesquisa",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1760,
+        3504
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "4e159936-0977-43de-9b9d-92f366a4e97b",
+              "leftValue": "={{ $json.temFalhas }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "29180762-a1fd-49d4-b858-f51cf8ce82c2",
+      "name": "Pesquisa com Falhas de Integração?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1520,
+        3504
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "={{ 'Pesquisa finalizada com falha de integração. Consulte Resumo Final da Pesquisa. Callback: ' + ($json.callback_erro || 'OK') + '. Sincronização Sheets: ' + $json.errosSincronizacao.join('; ') }}"
+      },
+      "id": "d4472cca-7d79-4b27-b5b0-a92f74d0db5f",
+      "name": "Sinalizar Falha de Integração",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        -1280,
+        3392
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "documentId": {
+          "__rl": true,
+          "value": "1rsDDI26rMRg_1qeTh7t7IGHwsKwymBUgUCYS2_tsvPQ",
+          "mode": "id"
+        },
+        "title": "={{ $('Preparar Sincronização com Telefone').first().json.sheetName }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        -4192,
+        3248
+      ],
+      "id": "f9418951-17f3-4c0b-bd3f-4c52f7280985",
+      "name": "Criar Aba de Prospecção da Pesquisa",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CC2JVZGlvh4WZjs2",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $('Preparar Sincronização com Telefone').first().json;\nconst created = $input.first().json;\nconst rawId = created.properties?.sheetId ?? created.sheetId;\nif (rawId === undefined || rawId === null || !Number.isInteger(Number(rawId)) || Number(rawId) < 0) {\n  throw new Error('A criação da aba de prospecção não retornou sheetId válido.');\n}\nconst id = Number(rawId);\nconst keys = base.leadsProspecao.map(r => String(r['Lead Key'] ?? ''));\nif (keys.some(k => !k) || new Set(keys).size !== keys.length) throw new Error('Lead Key ausente ou repetida na lista de prospecção.');\nreturn [{json: {...base, prospection: {schemaVersion: 2, ready: false,\n  spreadsheetId: '1rsDDI26rMRg_1qeTh7t7IGHwsKwymBUgUCYS2_tsvPQ', sheetId: id, sheetName: base.sheetName,\n  sheetUrl: 'https://docs.google.com/spreadsheets/d/1rsDDI26rMRg_1qeTh7t7IGHwsKwymBUgUCYS2_tsvPQ/edit#gid=' + id,\n  eligibleCount: keys.length, eligibleLeadKeys: keys}}}];"
+      },
+      "id": "3d80317a-fa09-44ea-ae2a-2171e305f79a",
+      "name": "Identificar Aba de Prospecção",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3952,
+        3248
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ 'https://sheets.googleapis.com/v4/spreadsheets/1rsDDI26rMRg_1qeTh7t7IGHwsKwymBUgUCYS2_tsvPQ/values/' + encodeURIComponent(\"'\" + $('Identificar Aba de Prospecção').first().json.prospection.sheetName.replace(/'/g, \"''\") + \"'!A1:N1\") + '?valueInputOption=RAW' }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"values\": [[\"Nome\", \"Telefone\", \"E-mail\", \"E-mail 2\", \"Website\", \"Bairro\", \"Cidade\", \"UF\", \"Status\", \"Mensagem Enviada\", \"Data de Envio\", \"Search ID\", \"Lead Key\", \"Presença Digital\"]]}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -3712,
+        3248
+      ],
+      "id": "5368576e-10a2-4037-8066-aa6d1e09d92a",
+      "name": "Criar Cabeçalho da Prospecção",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CC2JVZGlvh4WZjs2",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json: $('Identificar Aba de Prospecção').first().json}];"
+      },
+      "id": "64776d9b-db54-46b0-9520-7cc43e586eff",
+      "name": "Contexto da Aba de Prospecção",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3472,
+        3248
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $input.first().json;\nreturn [{json: {...base, prospection: {...base.prospection, ready: true}, errosSincronizacao: []}}];"
+      },
+      "id": "96f3c3a5-6612-4ad9-8977-025ad909d34e",
+      "name": "Concluir Aba sem Leads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3200,
+        3760
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $('Preparar Sincronização com Telefone').first().json;\nconst error = $input.first().json;\nconst detail = String(error.error?.message ?? error.error ?? error.message ?? 'Falha na criação da aba individual').slice(0, 1000);\nreturn [{json: {...base, prospection: {schemaVersion: 2, ready: false,\n  spreadsheetId: '1rsDDI26rMRg_1qeTh7t7IGHwsKwymBUgUCYS2_tsvPQ', sheetId: null, sheetName: base.sheetName, sheetUrl: null,\n  eligibleCount: base.leadsProspecao.length,\n  eligibleLeadKeys: base.leadsProspecao.map(r => r['Lead Key'])}, errosSincronizacao: [detail]}}];"
+      },
+      "id": "003c4104-6a88-4e0c-a0f8-6707f9302052",
+      "name": "Registrar Falha na Preparação da Aba",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3440,
+        2928
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all();"
+      },
+      "id": "8ee73045-88b5-4bf0-80d1-6c19a427c20e",
+      "name": "Preparar Callback com Aba Individual",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2240,
+        3504
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "É teste de conexão?": {
+      "main": [
+        [
+          {
+            "node": "Teste de conexão recebido",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Listar Abas Existentes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consolidar antes da leitura1": {
+      "main": [
+        [
+          {
+            "node": "Ler Resultado da Pesquisa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Gera Bairros",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Gera Bairros",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem Website?": {
+      "main": [
+        [
+          {
+            "node": "Scrape Site",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preservar Lead sem Website",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Busca Google": {
+      "main": [
+        [
+          {
+            "node": "Normalizar e Deduplicar Resultados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trata Dados": {
+      "main": [
+        [
+          {
+            "node": "Há Bairros?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Row": {
+      "main": [
+        [
+          {
+            "node": "Consolidar antes da leitura1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler Resultado da Pesquisa": {
+      "main": [
+        [
+          {
+            "node": "Deduplicar Leads antes do Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Resposta para ScanRadar": {
+      "main": [
+        [
+          {
+            "node": "Preparar Sincronização com Telefone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrai E-mails": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Site": {
+      "main": [
+        [
+          {
+            "node": "Extrai E-mails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items7": {
+      "main": [
+        [
+          {
+            "node": "Add Row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tem Website?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - ScanRadar": {
+      "main": [
+        [
+          {
+            "node": "Preparar Pesquisa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Pesquisa": {
+      "main": [
+        [
+          {
+            "node": "É teste de conexão?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Listar Abas Existentes": {
+      "main": [
+        [
+          {
+            "node": "Definir Nome da Aba",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Definir Nome da Aba": {
+      "main": [
+        [
+          {
+            "node": "Criar Aba da Pesquisa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Aba da Pesquisa": {
+      "main": [
+        [
+          {
+            "node": "Criar Cabeçalho da Aba",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Cabeçalho da Aba": {
+      "main": [
+        [
+          {
+            "node": "Gera Bairros",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gera Bairros": {
+      "main": [
+        [
+          {
+            "node": "Trata Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deduplicar Leads antes do Callback": {
+      "main": [
+        [
+          {
+            "node": "Preparar Resposta para ScanRadar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar na Web (Serper)": {
+      "ai_tool": [
+        [
+          {
+            "node": "Gera Bairros",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Há Bairros?": {
+      "main": [
+        [
+          {
+            "node": "Busca Google",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Resposta para ScanRadar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar e Deduplicar Resultados": {
+      "main": [
+        [
+          {
+            "node": "Há Leads?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Há Leads?": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items7",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Resposta para ScanRadar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preservar Lead sem Website": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Sincronização com Telefone": {
+      "main": [
+        [
+          {
+            "node": "Criar Aba de Prospecção da Pesquisa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Há Telefones para Sincronizar?": {
+      "main": [
+        [
+          {
+            "node": "Separar Leads com Telefone",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Concluir Aba sem Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar Leads com Telefone": {
+      "main": [
+        [
+          {
+            "node": "Sincronizar Leads na Prospecção",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sincronizar Leads na Prospecção": {
+      "main": [
+        [
+          {
+            "node": "Consolidar Resultado da Sincronização",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consolidar Resultado da Sincronização": {
+      "main": [
+        [
+          {
+            "node": "Preparar Callback com Aba Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar resultados ao ScanRadar": {
+      "main": [
+        [
+          {
+            "node": "Resumo Final da Pesquisa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resumo Final da Pesquisa": {
+      "main": [
+        [
+          {
+            "node": "Pesquisa com Falhas de Integração?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pesquisa com Falhas de Integração?": {
+      "main": [
+        [
+          {
+            "node": "Sinalizar Falha de Integração",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Aba de Prospecção da Pesquisa": {
+      "main": [
+        [
+          {
+            "node": "Identificar Aba de Prospecção",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar Falha na Preparação da Aba",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Identificar Aba de Prospecção": {
+      "main": [
+        [
+          {
+            "node": "Criar Cabeçalho da Prospecção",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar Falha na Preparação da Aba",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Cabeçalho da Prospecção": {
+      "main": [
+        [
+          {
+            "node": "Contexto da Aba de Prospecção",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar Falha na Preparação da Aba",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contexto da Aba de Prospecção": {
+      "main": [
+        [
+          {
+            "node": "Há Telefones para Sincronizar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Concluir Aba sem Leads": {
+      "main": [
+        [
+          {
+            "node": "Preparar Callback com Aba Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar Falha na Preparação da Aba": {
+      "main": [
+        [
+          {
+            "node": "Preparar Callback com Aba Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Callback com Aba Individual": {
+      "main": [
+        [
+          {
+            "node": "Enviar resultados ao ScanRadar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "nodeGroups": []
+}

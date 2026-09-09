@@ -1,0 +1,15 @@
+[build]
+  command = "npm run check"
+  publish = "dist/client"
+
+[build.environment]
+  NODE_VERSION = "22"
+  VITE_SUPABASE_URL = "https://bnffqhtwwuvpidyapqin.supabase.co"
+  VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_bxcKPeihH7HHx43jsbBJkg_IAIfAKJ_"
+
+# Keep secrets in the Netlify UI, scoped to Functions and Production.
+# Preview builds compile an unconditional no-dispatch guard.
+[context.deploy-preview.environment]
+  SCANRADAR_ENABLE_AUTOMATIONS = "false"
+[context.branch-deploy.environment]
+  SCANRADAR_ENABLE_AUTOMATIONS = "false"
