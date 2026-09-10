@@ -26,9 +26,24 @@ async function exec(sql: string) {
   else await pg.exec(sql);
 }
 async function rpc(name: string, args: any[]) {
+  // postgres.js binds JavaScript strings as text. Native PostgreSQL therefore
+  // sees JSON payloads such as "[]" as a JSON string scalar unless the
+  // corresponding RPC argument is cast explicitly. PGlite is more permissive,
+  // which previously hid this difference in local runs. Keep the test harness
+  // equivalent to Supabase's JSON binding by annotating every jsonb position.
+  const jsonbPositions: Record<string, readonly number[]> = {
+    upsert_search_prospection: [9],
+    finish_automation_run_v3: [4, 5, 6],
+    finalize_automation_cancel: [4],
+    reconcile_automation_send: [7],
+    complete_search_with_prospection: [3, 7, 8],
+  };
+  const jsonb = new Set(jsonbPositions[name] ?? []);
   return (
     await query(
-      `select public.${name}(${args.map((_, i) => `$${i + 1}`).join(",")}) as result`,
+      `select public.${name}(${args
+        .map((_, i) => (jsonb.has(i) ? `$${i + 1}::jsonb` : `$${i + 1}`))
+        .join(",")}) as result`,
       args,
     )
   )[0].result;
