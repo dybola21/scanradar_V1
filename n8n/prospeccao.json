@@ -1268,7 +1268,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Use o domínio PUBLICADO do ScanRadar. Não é a URL do n8n.\nconst appBaseUrl = 'https://configure-seu-scanradar.invalid';\nif (appBaseUrl.endsWith('.invalid')) throw new Error('Configure o domínio publicado do ScanRadar antes de executar.');\nif (!/^https:\\/\\/[^/?#]+$/.test(appBaseUrl)) throw new Error('Configure somente a origem HTTPS publicada do app, sem barra final.');\nreturn [{json:{...$input.first().json, appBaseUrl}}];"
+        "jsCode": "// Use o domínio PUBLICADO do ScanRadar. Não é a URL do n8n.\nconst appBaseUrl = \"https://scanradar.netlify.app\";\nif (appBaseUrl.endsWith('.invalid')) throw new Error('Configure o domínio publicado do ScanRadar antes de executar.');\nif (!/^https:\\/\\/[^/?#]+$/.test(appBaseUrl)) throw new Error('Configure somente a origem HTTPS publicada do app, sem barra final.');\nreturn [{json:{...$input.first().json, appBaseUrl}}];"
       },
       "name": "Configuração do App",
       "id": "05e53494-b400-4042-ae85-04f7dfb976f8",
