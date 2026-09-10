@@ -8,6 +8,9 @@ import postgres from "postgres";
 // concurrency tests are enabled only for native PostgreSQL, never mislabeled as PGlite tests.
 const externalUrl = process.env["TEST_DATABASE_URL"];
 const external = externalUrl ? postgres(externalUrl, { max: 12, onnotice: () => {} }) : null;
+const setupExternal = externalUrl
+  ? postgres(externalUrl, { max: 1, onnotice: () => {} })
+  : null;
 let pg: PGlite;
 const uid = "11111111-1111-4111-8111-111111111111";
 const other = "22222222-2222-4222-8222-222222222222";
@@ -88,8 +91,17 @@ beforeAll(async () => {
   if (external && process.env["ALLOW_TEST_DATABASE_RESET"] !== "yes")
     throw new Error("Set ALLOW_TEST_DATABASE_RESET=yes only for a disposable test database.");
   if (!external) pg = new PGlite();
-  await exec(await readFile("tests/fixtures.sql", "utf8"));
-  await exec(await readFile("supabase/migrations/20260909000000_scanradar_initial.sql", "utf8"));
+  if (setupExternal) {
+    await setupExternal.unsafe(await readFile("tests/fixtures.sql", "utf8"));
+    await setupExternal.unsafe(
+      await readFile("supabase/migrations/20260909000000_scanradar_initial.sql", "utf8"),
+    );
+  } else {
+    await pg.exec(await readFile("tests/fixtures.sql", "utf8"));
+    await pg.exec(
+      await readFile("supabase/migrations/20260909000000_scanradar_initial.sql", "utf8"),
+    );
+  }
 });
 beforeEach(async () => {
   await exec("TRUNCATE public.user_roles");
@@ -111,6 +123,7 @@ beforeEach(async () => {
 });
 afterAll(async () => {
   if (external) await external.end();
+  if (setupExternal) await setupExternal.end();
   else await pg?.close();
 });
 
