@@ -25,7 +25,33 @@ async function exec(sql: string) {
   if (external) await external.unsafe(sql);
   else await pg.exec(sql);
 }
-async function rpc(name: string, args: any[]) {
+// SET ROLE and the JWT claim are session state. Keep permission checks on one
+// physical connection, then reset that SAME connection before returning it to
+// the pool. Ordinary tests still use the pool (max: 12) for real concurrency.
+async function withAuthenticatedSession(
+  owner: string,
+  check: (sessionQuery: typeof query) => Promise<void>,
+) {
+  const session = external ? await external.reserve() : null;
+  const sessionQuery: typeof query = async (sql, params = []) =>
+    session ? [...(await session.unsafe(sql, params))] : query(sql, params);
+  try {
+    await sessionQuery("SET ROLE authenticated");
+    await sessionQuery("SELECT set_config('request.jwt.claim.sub',$1,false)", [owner]);
+    expect((await sessionQuery("SELECT current_user AS role, auth.uid() AS uid"))[0]).toEqual({
+      role: "authenticated", uid: owner,
+    });
+    await check(sessionQuery);
+  } finally {
+    try {
+      await sessionQuery("RESET ROLE");
+      await sessionQuery("RESET request.jwt.claim.sub");
+    } finally {
+      session?.release();
+    }
+  }
+}
+async function rpc(name: string, args: any[], runQuery: typeof query = query) {
   // JSON fixtures are already serialized strings. A direct ::jsonb parameter
   // makes postgres.js apply JSON.stringify again after describing the query,
   // so [] becomes a JSON string instead of an array. Bind it as text first,
@@ -41,7 +67,7 @@ async function rpc(name: string, args: any[]) {
   };
   const jsonb = new Set(jsonbPositions[name] ?? []);
   return (
-    await query(
+    await runQuery(
       `select public.${name}(${args
         .map((_, i) => (jsonb.has(i) ? `$${i + 1}::text::jsonb` : `$${i + 1}`))
         .join(",")}) as result`,
@@ -559,23 +585,31 @@ describe("Standalone settings message tests", () => {
     await rpc('message_test_receipt',[r.runId,JSON.stringify(receipt(r.runId,{status:'número inválido',mensagem_enviada:false}))]);
     expect((await query('select state from public.message_test_attempts where run_id=$1',[r.runId]))[0].state).toBe('sent');
   });
-  test('authenticated browser cannot write settings, create tests or confirm cancellation through SQL',async()=>{
-    await exec('SET ROLE authenticated');
-    try {
-      await expect(configure()).rejects.toThrow();
-      await expect(testStart()).rejects.toThrow();
-      await expect(query("INSERT INTO public.message_test_settings(user_id,phone,business_name,city) VALUES($1,$2,'X','Y')",[uid,testPhone])).rejects.toThrow();
-    } finally {await exec('RESET ROLE');}
+  test('authenticated browser cannot write settings, create tests or confirm cancellation through SQL', async () => {
+    await withAuthenticatedSession(uid, async (sessionQuery) => {
+      await expect(rpc('save_message_test_settings', [uid, true, testPhone, 'Empresa fictícia', 'Rio'], sessionQuery))
+        .rejects.toThrow(/permission denied/);
+      await expect(rpc('start_message_test', [uid, 'test-role-attempt'], sessionQuery))
+        .rejects.toThrow(/permission denied/);
+      await expect(rpc('cancel_message_test', [uid, a, true], sessionQuery))
+        .rejects.toThrow(/permission denied/);
+      await expect(sessionQuery("INSERT INTO public.message_test_settings(user_id,phone,business_name,city) VALUES($1,$2,'X','Y')", [uid, testPhone]))
+        .rejects.toThrow(/permission denied/);
+    });
   });
-  test('test history and settings are visible only to the owner under RLS',async()=>{
-    await configure();const r=await testStart();
-    await query("SELECT set_config('request.jwt.claim.sub',$1,false)",[other]);
-    await exec('SET ROLE authenticated');
-    try {
-      expect((await query('SELECT * FROM public.message_test_settings')).length).toBe(0);
-      expect((await query('SELECT * FROM public.message_test_attempts')).length).toBe(0);
-      expect((await query('SELECT * FROM public.automation_runs WHERE id=$1',[r.runId])).length).toBe(0);
-    } finally {await exec('RESET ROLE');await exec("RESET request.jwt.claim.sub");}
+  test('test history and settings are visible only to the owner under RLS', async () => {
+    await configure();
+    const r = await testStart();
+    await withAuthenticatedSession(uid, async (sessionQuery) => {
+      expect((await sessionQuery('SELECT user_id FROM public.message_test_settings'))).toEqual([{user_id:uid}]);
+      expect((await sessionQuery('SELECT run_id FROM public.message_test_attempts'))).toEqual([{run_id:r.runId}]);
+      expect((await sessionQuery('SELECT id FROM public.automation_runs WHERE id=$1', [r.runId]))).toEqual([{id:r.runId}]);
+    });
+    await withAuthenticatedSession(other, async (sessionQuery) => {
+      expect((await sessionQuery('SELECT * FROM public.message_test_settings')).length).toBe(0);
+      expect((await sessionQuery('SELECT * FROM public.message_test_attempts')).length).toBe(0);
+      expect((await sessionQuery('SELECT * FROM public.automation_runs WHERE id=$1', [r.runId])).length).toBe(0);
+    });
   });
   test.skipIf(!external)('native concurrent test starts serialize; test and production compete for one connection',async()=>{
     await configure();
