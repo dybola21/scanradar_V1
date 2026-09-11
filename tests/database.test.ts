@@ -1,6 +1,6 @@
 import { beforeAll, beforeEach, afterAll, describe, expect, test } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import postgres from "postgres";
 
 // TEST_DATABASE_URL must point at a disposable empty PostgreSQL database.
@@ -31,6 +31,8 @@ async function rpc(name: string, args: any[]) {
   // so [] becomes a JSON string instead of an array. Bind it as text first,
   // then let PostgreSQL parse that text as jsonb. SQL null stays SQL null.
   const jsonbPositions: Record<string, readonly number[]> = {
+    message_test_control: [1],
+    message_test_receipt: [1],
     upsert_search_prospection: [9],
     finish_automation_run_v3: [4, 5, 6],
     finalize_automation_cancel: [4],
@@ -116,9 +118,13 @@ beforeAll(async () => {
       await readFile("supabase/migrations/20260909000000_scanradar_initial.sql", "utf8"),
     );
   }
+  for (const file of (await readdir('supabase/migrations')).sort().filter(f => f.endsWith('.sql') && f !== '20260909000000_scanradar_initial.sql')) {
+    const sql = await readFile(`supabase/migrations/${file}`, 'utf8');
+    if (setupExternal) await setupExternal.unsafe(sql); else await pg.exec(sql);
+  }
 });
 beforeEach(async () => {
-  await exec("TRUNCATE public.user_roles");
+  await exec("TRUNCATE public.user_roles,public.message_test_settings");
   await query("INSERT INTO public.user_roles(user_id,role) VALUES($1,'admin')", [uid]);
   await exec(
     "TRUNCATE public.searches,public.leads,public.n8n_settings,public.automation_runs,public.search_prospection,public.contact_reservations,public.automation_events CASCADE",
@@ -476,4 +482,109 @@ describe("Fresh installation permissions",()=>{
   try{await roleQuery("SELECT set_config('request.jwt.claim.sub',$1,false)",[uid]);const rows=await roleQuery("SELECT user_id FROM public.scan_logs WHERE event_type='TEST'");expect(rows).toEqual([{user_id:uid}]);}
   finally{await roleQuery("RESET ROLE");session?.release();}
  });
+});
+
+
+describe("Standalone settings message tests", () => {
+  const testPhone = '5521999991111';
+  const configure = (owner = uid, phone = testPhone) => rpc('save_message_test_settings', [owner, true, phone, 'Empresa fictícia', 'Rio']);
+  const testStart = (key = 'test-attempt-001', owner = uid) => rpc('start_message_test', [owner, key]);
+  const control = (id: string, action: string, extra: Record<string, unknown> = {}) => rpc('message_test_control', [id, JSON.stringify({protocolVersion:3,searchId:id,automationRunId:id,executionId:'test-worker',action,...extra})]);
+  const receipt = (id:string, extra: Record<string,unknown> = {}) => ({protocolVersion:3,searchId:id,automationRunId:id,executionId:'test-worker',lead_key:'test:'+id,telefone:testPhone,status:'enviado',mensagem_enviada:true,attemptKey:'test-attempt',messageId:'provider-receipt',messageText:'Olá, teste!',...extra});
+  const send = async (id:string) => {
+    expect((await control(id,'claim')).accepted).toBe(true);
+    expect((await control(id,'reserve',{lead_key:'test:'+id,telefone:testPhone})).allowed).toBe(true);
+    expect((await control(id,'begin_send',{lead_key:'test:'+id,telefone:testPhone,attemptKey:'test-attempt'})).allowed).toBe(true);
+  };
+  const done = (id:string, receipts:unknown[] = []) => control(id,'finish',{status:'completed',stopAcknowledged:true,receipts});
+  test('disabled is rejected; snapshots config; repeated start never creates a second run; shared production lock',async()=>{
+    expect((await testStart()).status).toBe('not_configured');
+    await configure();const r=await testStart();expect(r.status).toBe('created');
+    expect((await testStart()).runId).toBe(r.runId);
+    expect((await testStart('test-attempt-002')).status).toBe('conflict');
+    expect((await start()).status).toBe('conflict');
+    expect((await configure(uid,'5521999993333')).success).toBe(false);
+    const claimed=await control(r.runId,'claim');
+    expect(claimed.testLead.Telefone).toBe(testPhone);expect(claimed.mode).toBe('test');
+    expect((await control(r.runId,'claim',{executionId:'other-worker'})).accepted).toBe(false);
+  });
+  test('production run blocks test and uses the same global unique index',async()=>{
+    await configure();await start();expect((await testStart()).status).toBe('conflict');
+  });
+  test('send, duplicate receipt and retest preserve commercial records and historical tests',async()=>{
+    await configure();const r=await testStart();await send(r.runId);
+    expect((await control(r.runId,'begin_send',{lead_key:'test:'+r.runId,telefone:testPhone,attemptKey:'test-attempt'})).allowed).toBe(false);
+    await rpc('message_test_receipt',[r.runId,JSON.stringify(receipt(r.runId))]);
+    await rpc('message_test_receipt',[r.runId,JSON.stringify(receipt(r.runId))]);
+    expect((await done(r.runId)).state).toBe('completed');
+    expect((await query("select count(*)::int n from public.automation_events where run_id=$1 and event_type='sent'",[r.runId]))[0].n).toBe(1);
+    expect((await query("select count(*)::int n from public.contact_reservations"))[0].n).toBe(0);
+    expect((await query("select count(*)::int n from public.leads where mensagem_enviada=true"))[0].n).toBe(0);
+    expect((await testStart('test-attempt-002')).status).toBe('created');
+    expect((await query("select count(*)::int n from public.message_test_attempts"))[0].n).toBe(2);
+  });
+  test('phone, lead, execution, attempt and receipt evidence are fenced',async()=>{
+    await configure();const r=await testStart();await control(r.runId,'claim');
+    expect((await control(r.runId,'reserve',{lead_key:'a1',telefone:testPhone})).allowed).toBe(false);
+    expect((await control(r.runId,'reserve',{lead_key:'test:'+r.runId,telefone:'5521999993333'})).allowed).toBe(false);
+    expect((await control(r.runId,'reserve',{lead_key:'test:'+r.runId,telefone:testPhone,executionId:'foreign'})).allowed).toBe(false);
+    await control(r.runId,'reserve',{lead_key:'test:'+r.runId,telefone:testPhone});
+    await expect(rpc('message_test_receipt',[r.runId,JSON.stringify(receipt(r.runId))])).rejects.toThrow();
+    await control(r.runId,'begin_send',{lead_key:'test:'+r.runId,telefone:testPhone,attemptKey:'test-attempt'});
+    for(const diff of [{attemptKey:'foreign'},{messageId:''},{telefone:'5521999993333'},{searchId:a}]) {
+      await expect(rpc('message_test_receipt',[r.runId,JSON.stringify(receipt(r.runId,diff))])).rejects.toThrow();
+    }
+  });
+  test('cancel before claim fences late workers; cancel after claim holds lock until stop acknowledgement',async()=>{
+    await configure();const r=await testStart();
+    await expect(rpc('cancel_message_test',[other,r.runId,false])).rejects.toThrow();
+    expect((await rpc('cancel_message_test',[uid,r.runId,false])).verified).toBe(true);
+    expect((await control(r.runId,'claim')).accepted).toBe(false);
+    const next=await testStart('test-attempt-002');await control(next.runId,'claim');
+    expect((await rpc('cancel_message_test',[uid,next.runId,false])).verified).toBe(false);
+    expect((await control(next.runId,'check')).directive).toBe('stop');
+    expect((await testStart('test-attempt-003')).status).toBe('conflict');
+    expect((await done(next.runId)).state).toBe('cancelled');
+    expect((await testStart('test-attempt-003')).status).toBe('created');
+  });
+  test('uncertain send is reviewable, late receipts are accepted without reopening; invalid finish rolls back',async()=>{
+    await configure();const r=await testStart();await send(r.runId);
+    await expect(done(r.runId,[receipt(r.runId,{searchId:a})])).rejects.toThrow();
+    expect((await control(r.runId,'check')).state).toBe('running');
+    expect((await done(r.runId)).state).toBe('completed_with_errors');
+    expect((await query('select state from public.message_test_attempts where run_id=$1',[r.runId]))[0].state).toBe('needs_review');
+    await rpc('message_test_receipt',[r.runId,JSON.stringify(receipt(r.runId))]);
+    expect((await control(r.runId,'check')).state).toBe('completed_with_errors');
+    expect((await query('select state from public.message_test_attempts where run_id=$1',[r.runId]))[0].state).toBe('sent');
+    await rpc('message_test_receipt',[r.runId,JSON.stringify(receipt(r.runId,{status:'número inválido',mensagem_enviada:false}))]);
+    expect((await query('select state from public.message_test_attempts where run_id=$1',[r.runId]))[0].state).toBe('sent');
+  });
+  test('authenticated browser cannot write settings, create tests or confirm cancellation through SQL',async()=>{
+    await exec('SET ROLE authenticated');
+    try {
+      await expect(configure()).rejects.toThrow();
+      await expect(testStart()).rejects.toThrow();
+      await expect(query("INSERT INTO public.message_test_settings(user_id,phone,business_name,city) VALUES($1,$2,'X','Y')",[uid,testPhone])).rejects.toThrow();
+    } finally {await exec('RESET ROLE');}
+  });
+  test('test history and settings are visible only to the owner under RLS',async()=>{
+    await configure();const r=await testStart();
+    await query("SELECT set_config('request.jwt.claim.sub',$1,false)",[other]);
+    await exec('SET ROLE authenticated');
+    try {
+      expect((await query('SELECT * FROM public.message_test_settings')).length).toBe(0);
+      expect((await query('SELECT * FROM public.message_test_attempts')).length).toBe(0);
+      expect((await query('SELECT * FROM public.automation_runs WHERE id=$1',[r.runId])).length).toBe(0);
+    } finally {await exec('RESET ROLE');await exec("RESET request.jwt.claim.sub");}
+  });
+  test.skipIf(!external)('native concurrent test starts serialize; test and production compete for one connection',async()=>{
+    await configure();
+    const replies=await Promise.all([testStart('test-concurrent-01'),testStart('test-concurrent-01')]);
+    expect(replies.map(r=>r.status).sort()).toEqual(['created','existing']);
+    expect(replies[0].runId).toBe(replies[1].runId);
+    await rpc('cancel_message_test',[uid,replies[0].runId,false]);
+    const mixed=await Promise.all([testStart('test-concurrent-02'),start()]);
+    expect(mixed.map(r=>r.status).sort()).toEqual(['conflict','created']);
+  });
+
 });

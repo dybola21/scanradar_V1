@@ -1,3 +1,4 @@
+import { MessageTestSettings } from "./MessageTestSettings";
 import { ProspectionSettings } from "./ProspectionSettings";
 import { useState, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -286,6 +287,7 @@ export default function Settings() {
         </div>
       </form>
       <ProspectionSettings />
+      <MessageTestSettings />
     </div>
   );
 }

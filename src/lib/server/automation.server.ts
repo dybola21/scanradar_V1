@@ -1,3 +1,4 @@
+import { authenticateTestCallback } from "./message-tests.server";
 import { assertDispatchEnabled } from "./dispatch-policy";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -247,6 +248,10 @@ const asRecord = (value: unknown): Record<string, unknown> =>
 
 export async function automationControl(request: Request) {
   const body = controlSchema.parse(await readBody(request));
+  if (await authenticateTestCallback(request, body)) {
+    if (body.action === "finish") body.receipts = body.receipts.map(r => whatsappSchema.parse(r));
+    return json(await rpc("message_test_control", { p_run_id: body.automationRunId, p_body: body }));
+  }
   await authenticateCallback(request, body.searchId);
   const base = scope(body);
   const common = {
@@ -379,6 +384,8 @@ export async function automationControl(request: Request) {
 export async function whatsappStatus(request: Request) {
   // Legacy phone-only callbacks are rejected explicitly: they cannot mutate a v2 run.
   const body = whatsappSchema.parse(await readBody(request));
+  if (await authenticateTestCallback(request, body))
+    return json(await rpc("message_test_receipt", { p_run_id: body.automationRunId, p_body: body }));
   await authenticateCallback(request, body.searchId);
   const result = asRecord(
     await rpc("apply_whatsapp_status", {

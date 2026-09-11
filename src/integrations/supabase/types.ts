@@ -54,6 +54,7 @@ export type Database = {
       }
       automation_runs: {
         Row: {
+          mode: "production" | "test"
           cancel_detail: Json | null
           cancel_evidence: string | null
           cancel_requested_at: string | null
@@ -71,7 +72,7 @@ export type Database = {
           n8n_execution_id: string | null
           n8n_workflow_id: string | null
           offer_description: string | null
-          search_id: string
+          search_id: string | null
           sheet_id: number | null
           sheet_name: string | null
           sheet_spreadsheet_id: string | null
@@ -83,6 +84,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          mode?: "production" | "test"
           cancel_detail?: Json | null
           cancel_evidence?: string | null
           cancel_requested_at?: string | null
@@ -100,7 +102,7 @@ export type Database = {
           n8n_execution_id?: string | null
           n8n_workflow_id?: string | null
           offer_description?: string | null
-          search_id: string
+          search_id: string | null
           sheet_id?: number | null
           sheet_name?: string | null
           sheet_spreadsheet_id?: string | null
@@ -112,6 +114,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          mode?: "production" | "test"
           cancel_detail?: Json | null
           cancel_evidence?: string | null
           cancel_requested_at?: string | null
@@ -129,7 +132,7 @@ export type Database = {
           n8n_execution_id?: string | null
           n8n_workflow_id?: string | null
           offer_description?: string | null
-          search_id?: string
+          search_id?: string | null
           sheet_id?: number | null
           sheet_name?: string | null
           sheet_spreadsheet_id?: string | null

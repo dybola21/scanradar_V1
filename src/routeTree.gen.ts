@@ -16,6 +16,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated.history'
 import { Route as AuthenticatedSearchRouteImport } from './routes/_authenticated.search'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated.settings'
+import { Route as ApiMessageTestsRouteImport } from './routes/api.message-tests'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthResetRouteImport } from './routes/auth.reset'
 import { Route as AuthenticatedAdminLogsRouteImport } from './routes/_authenticated.admin.logs'
@@ -24,6 +25,9 @@ import { Route as ApiAutomationsCancelRouteImport } from './routes/api.automatio
 import { Route as ApiAutomationsReconcileRouteImport } from './routes/api.automations.reconcile'
 import { Route as ApiAutomationsStartRouteImport } from './routes/api.automations.start'
 import { Route as ApiAutomationsStatusRouteImport } from './routes/api.automations.status'
+import { Route as ApiMessageTestsCancelRouteImport } from './routes/api.message-tests.cancel'
+import { Route as ApiMessageTestsReconcileRouteImport } from './routes/api.message-tests.reconcile'
+import { Route as ApiMessageTestsStartRouteImport } from './routes/api.message-tests.start'
 import { Route as ApiPublicAutomationControlRouteImport } from './routes/api.public.automation-control'
 import { Route as ApiPublicIntegrationHealthRouteImport } from './routes/api.public.integration-health'
 import { Route as ApiPublicResultsRouteImport } from './routes/api.public.results'
@@ -63,6 +67,11 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => AuthenticatedRoute,
+} as any)
+const ApiMessageTestsRoute = ApiMessageTestsRouteImport.update({
+  id: '/api/message-tests',
+  path: '/api/message-tests',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/callback',
@@ -105,6 +114,22 @@ const ApiAutomationsStatusRoute = ApiAutomationsStatusRouteImport.update({
   path: '/api/automations/status',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMessageTestsCancelRoute = ApiMessageTestsCancelRouteImport.update({
+  id: '/cancel',
+  path: '/cancel',
+  getParentRoute: () => ApiMessageTestsRoute,
+} as any)
+const ApiMessageTestsReconcileRoute =
+  ApiMessageTestsReconcileRouteImport.update({
+    id: '/reconcile',
+    path: '/reconcile',
+    getParentRoute: () => ApiMessageTestsRoute,
+  } as any)
+const ApiMessageTestsStartRoute = ApiMessageTestsStartRouteImport.update({
+  id: '/start',
+  path: '/start',
+  getParentRoute: () => ApiMessageTestsRoute,
+} as any)
 const ApiPublicAutomationControlRoute =
   ApiPublicAutomationControlRouteImport.update({
     id: '/api/public/automation-control',
@@ -140,6 +165,7 @@ export interface FileRoutesByFullPath {
   '/history': typeof AuthenticatedHistoryRoute
   '/search': typeof AuthenticatedSearchRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/api/message-tests': typeof ApiMessageTestsRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/reset': typeof AuthResetRoute
   '/admin/logs': typeof AuthenticatedAdminLogsRoute
@@ -148,6 +174,9 @@ export interface FileRoutesByFullPath {
   '/api/automations/reconcile': typeof ApiAutomationsReconcileRoute
   '/api/automations/start': typeof ApiAutomationsStartRoute
   '/api/automations/status': typeof ApiAutomationsStatusRoute
+  '/api/message-tests/cancel': typeof ApiMessageTestsCancelRoute
+  '/api/message-tests/reconcile': typeof ApiMessageTestsReconcileRoute
+  '/api/message-tests/start': typeof ApiMessageTestsStartRoute
   '/api/public/automation-control': typeof ApiPublicAutomationControlRoute
   '/api/public/integration-health': typeof ApiPublicIntegrationHealthRoute
   '/api/public/results': typeof ApiPublicResultsRoute
@@ -161,6 +190,7 @@ export interface FileRoutesByTo {
   '/history': typeof AuthenticatedHistoryRoute
   '/search': typeof AuthenticatedSearchRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/api/message-tests': typeof ApiMessageTestsRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/reset': typeof AuthResetRoute
   '/admin/logs': typeof AuthenticatedAdminLogsRoute
@@ -169,6 +199,9 @@ export interface FileRoutesByTo {
   '/api/automations/reconcile': typeof ApiAutomationsReconcileRoute
   '/api/automations/start': typeof ApiAutomationsStartRoute
   '/api/automations/status': typeof ApiAutomationsStatusRoute
+  '/api/message-tests/cancel': typeof ApiMessageTestsCancelRoute
+  '/api/message-tests/reconcile': typeof ApiMessageTestsReconcileRoute
+  '/api/message-tests/start': typeof ApiMessageTestsStartRoute
   '/api/public/automation-control': typeof ApiPublicAutomationControlRoute
   '/api/public/integration-health': typeof ApiPublicIntegrationHealthRoute
   '/api/public/results': typeof ApiPublicResultsRoute
@@ -184,6 +217,7 @@ export interface FileRoutesById {
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/search': typeof AuthenticatedSearchRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/api/message-tests': typeof ApiMessageTestsRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/reset': typeof AuthResetRoute
   '/_authenticated/admin/logs': typeof AuthenticatedAdminLogsRoute
@@ -192,6 +226,9 @@ export interface FileRoutesById {
   '/api/automations/reconcile': typeof ApiAutomationsReconcileRoute
   '/api/automations/start': typeof ApiAutomationsStartRoute
   '/api/automations/status': typeof ApiAutomationsStatusRoute
+  '/api/message-tests/cancel': typeof ApiMessageTestsCancelRoute
+  '/api/message-tests/reconcile': typeof ApiMessageTestsReconcileRoute
+  '/api/message-tests/start': typeof ApiMessageTestsStartRoute
   '/api/public/automation-control': typeof ApiPublicAutomationControlRoute
   '/api/public/integration-health': typeof ApiPublicIntegrationHealthRoute
   '/api/public/results': typeof ApiPublicResultsRoute
@@ -207,6 +244,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/search'
     | '/settings'
+    | '/api/message-tests'
     | '/auth/callback'
     | '/auth/reset'
     | '/admin/logs'
@@ -215,6 +253,9 @@ export interface FileRouteTypes {
     | '/api/automations/reconcile'
     | '/api/automations/start'
     | '/api/automations/status'
+    | '/api/message-tests/cancel'
+    | '/api/message-tests/reconcile'
+    | '/api/message-tests/start'
     | '/api/public/automation-control'
     | '/api/public/integration-health'
     | '/api/public/results'
@@ -228,6 +269,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/search'
     | '/settings'
+    | '/api/message-tests'
     | '/auth/callback'
     | '/auth/reset'
     | '/admin/logs'
@@ -236,6 +278,9 @@ export interface FileRouteTypes {
     | '/api/automations/reconcile'
     | '/api/automations/start'
     | '/api/automations/status'
+    | '/api/message-tests/cancel'
+    | '/api/message-tests/reconcile'
+    | '/api/message-tests/start'
     | '/api/public/automation-control'
     | '/api/public/integration-health'
     | '/api/public/results'
@@ -250,6 +295,7 @@ export interface FileRouteTypes {
     | '/_authenticated/history'
     | '/_authenticated/search'
     | '/_authenticated/settings'
+    | '/api/message-tests'
     | '/auth/callback'
     | '/auth/reset'
     | '/_authenticated/admin/logs'
@@ -258,6 +304,9 @@ export interface FileRouteTypes {
     | '/api/automations/reconcile'
     | '/api/automations/start'
     | '/api/automations/status'
+    | '/api/message-tests/cancel'
+    | '/api/message-tests/reconcile'
+    | '/api/message-tests/start'
     | '/api/public/automation-control'
     | '/api/public/integration-health'
     | '/api/public/results'
@@ -269,6 +318,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
+  ApiMessageTestsRoute: typeof ApiMessageTestsRouteWithChildren
   ApiAutomationsCancelRoute: typeof ApiAutomationsCancelRoute
   ApiAutomationsReconcileRoute: typeof ApiAutomationsReconcileRoute
   ApiAutomationsStartRoute: typeof ApiAutomationsStartRoute
@@ -331,6 +381,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/api/message-tests': {
+      id: '/api/message-tests'
+      path: '/api/message-tests'
+      fullPath: '/api/message-tests'
+      preLoaderRoute: typeof ApiMessageTestsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/callback': {
       id: '/auth/callback'
       path: '/callback'
@@ -386,6 +443,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/automations/status'
       preLoaderRoute: typeof ApiAutomationsStatusRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/message-tests/cancel': {
+      id: '/api/message-tests/cancel'
+      path: '/cancel'
+      fullPath: '/api/message-tests/cancel'
+      preLoaderRoute: typeof ApiMessageTestsCancelRouteImport
+      parentRoute: typeof ApiMessageTestsRoute
+    }
+    '/api/message-tests/reconcile': {
+      id: '/api/message-tests/reconcile'
+      path: '/reconcile'
+      fullPath: '/api/message-tests/reconcile'
+      preLoaderRoute: typeof ApiMessageTestsReconcileRouteImport
+      parentRoute: typeof ApiMessageTestsRoute
+    }
+    '/api/message-tests/start': {
+      id: '/api/message-tests/start'
+      path: '/start'
+      fullPath: '/api/message-tests/start'
+      preLoaderRoute: typeof ApiMessageTestsStartRouteImport
+      parentRoute: typeof ApiMessageTestsRoute
     }
     '/api/public/automation-control': {
       id: '/api/public/automation-control'
@@ -459,10 +537,27 @@ const AuthRouteChildren: AuthRouteChildren = {
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
+interface ApiMessageTestsRouteChildren {
+  ApiMessageTestsCancelRoute: typeof ApiMessageTestsCancelRoute
+  ApiMessageTestsReconcileRoute: typeof ApiMessageTestsReconcileRoute
+  ApiMessageTestsStartRoute: typeof ApiMessageTestsStartRoute
+}
+
+const ApiMessageTestsRouteChildren: ApiMessageTestsRouteChildren = {
+  ApiMessageTestsCancelRoute: ApiMessageTestsCancelRoute,
+  ApiMessageTestsReconcileRoute: ApiMessageTestsReconcileRoute,
+  ApiMessageTestsStartRoute: ApiMessageTestsStartRoute,
+}
+
+const ApiMessageTestsRouteWithChildren = ApiMessageTestsRoute._addFileChildren(
+  ApiMessageTestsRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
+  ApiMessageTestsRoute: ApiMessageTestsRouteWithChildren,
   ApiAutomationsCancelRoute: ApiAutomationsCancelRoute,
   ApiAutomationsReconcileRoute: ApiAutomationsReconcileRoute,
   ApiAutomationsStartRoute: ApiAutomationsStartRoute,

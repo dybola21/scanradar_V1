@@ -859,7 +859,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const request = $('Validar Solicitação do Botão').first().json;\nconst rawReply = $input.first().json;\nconst reply = rawReply.body ?? rawReply;\nif (reply.accepted === false) return [{json: {...request, accepted: false, reason: String(reply.reason ?? 'Execução não autorizada')}}];\nif (reply.accepted !== true || reply.searchId !== request.searchId || reply.automationRunId !== request.automationRunId || String(reply.executionId) !== request.executionId) {\n  throw new Error('Autorização do app ausente ou não corresponde a esta execução.');\n}\nif (reply.protocolVersion !== 3) throw new Error('Atualize o backend ScanRadar para o protocolo 3 antes de iniciar envios.');\nconst tab = reply.prospection;\nif (!tab || tab.schemaVersion !== 2 || tab.ready !== true || tab.spreadsheetId !== '1rsDDI26rMRg_1qeTh7t7IGHwsKwymBUgUCYS2_tsvPQ'\n  || !Number.isInteger(tab.sheetId) || tab.sheetId < 0\n  || typeof tab.sheetName !== 'string' || !tab.sheetName.trim()\n  || !Array.isArray(tab.eligibleLeadKeys) || !tab.eligibleLeadKeys.every(k => typeof k === 'string' && k.length > 0)\n  || new Set(tab.eligibleLeadKeys).size !== tab.eligibleLeadKeys.length\n  || tab.eligibleCount !== tab.eligibleLeadKeys.length) {\n  throw new Error('Aba individual inválida ou não preparada. A aba geral Leads nunca será usada como alternativa.');\n}\nreturn [{json: {...request, accepted: true, prospection: tab,\n  offerDescription: String(reply.offerDescription || 'Criação de sites e agentes de automação para empresas.')}}];"
+        "jsCode": "const request = $('Validar Solicitação do Botão').first().json;\nconst rawReply = $input.first().json;\nconst reply = rawReply.body ?? rawReply;\nif (reply.accepted === false) return [{json: {...request, accepted: false, reason: String(reply.reason ?? 'Execução não autorizada')}}];\nif (reply.accepted !== true || reply.searchId !== request.searchId || reply.automationRunId !== request.automationRunId || String(reply.executionId) !== request.executionId) {\n  throw new Error('Autorização do app ausente ou não corresponde a esta execução.');\n}\nif (reply.protocolVersion !== 3) throw new Error('Atualize o backend ScanRadar para o protocolo 3 antes de iniciar envios.');\n// Test mode is accepted ONLY from the authenticated backend claim response.\nif (reply.mode === 'test') {\n const t=reply.testLead;\n if(reply.testProtocolVersion!==1 || request.searchId!==request.automationRunId || !t || t['Search ID']!==request.searchId || t['Lead Key']!=='test:'+request.automationRunId || !/^55\\d{10,11}$/.test(t.Telefone) || typeof t.Nome!=='string' || !t.Nome.trim()) throw new Error('Autorização do destinatário de teste inválida.');\n return [{json:{...request,accepted:true,mode:'test',testLead:t,offerDescription:reply.offerDescription}}];\n}\nconst tab = reply.prospection;\nif (!tab || tab.schemaVersion !== 2 || tab.ready !== true || tab.spreadsheetId !== '1rsDDI26rMRg_1qeTh7t7IGHwsKwymBUgUCYS2_tsvPQ'\n  || !Number.isInteger(tab.sheetId) || tab.sheetId < 0\n  || typeof tab.sheetName !== 'string' || !tab.sheetName.trim()\n  || !Array.isArray(tab.eligibleLeadKeys) || !tab.eligibleLeadKeys.every(k => typeof k === 'string' && k.length > 0)\n  || new Set(tab.eligibleLeadKeys).size !== tab.eligibleLeadKeys.length\n  || tab.eligibleCount !== tab.eligibleLeadKeys.length) {\n  throw new Error('Aba individual inválida ou não preparada. A aba geral Leads nunca será usada como alternativa.');\n}\nreturn [{json: {...request, accepted: true, prospection: tab,\n  offerDescription: String(reply.offerDescription || 'Criação de sites e agentes de automação para empresas.')}}];"
       },
       "id": "abfc6349-d8da-4dda-96da-b6f3a3426857",
       "name": "Contexto da Pesquisa",
@@ -1503,7 +1503,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const lead = $('Montar Mensagem Final1').item.json;\nconst ctx = $('Contexto da Pesquisa').first().json;\nconst response = $input.first().json;\nconst body = response.body ?? response;\nconst msg = body.data ?? body;\nconst id = msg.key?.id;\nif (response.error || Number(response.statusCode ?? 200)>=400 || typeof id !== 'string' || !id.trim() || msg.key?.fromMe !== true || ['ERROR','FAILED'].includes(String(msg.status).toUpperCase())) throw new Error('Evolution não confirmou o aceite com key.id/fromMe. Resultado incerto: não reenviar automaticamente.');\nconst callback_payload = {searchId:ctx.searchId,automationRunId:ctx.automationRunId,executionId:ctx.executionId,lead_key:lead['Lead Key'],telefone:lead.telefone_limpo,status:'enviado',mensagem_enviada:true,data_envio:new Date().toISOString(),messageText:lead.mensagem_final,messageId:id};\nreturn [{json:{...lead,callback_payload},pairedItem:{item:0}}];"
+        "jsCode": "const lead=$(\"Montar Mensagem Final1\").item.json;\nconst ctx=$(\"Contexto da Pesquisa\").first().json;\nconst response=$input.first().json, body=response.body??response, msg=body.data??body;\nconst id=msg.key?.id, jid=msg.key?.remoteJid;\nif(response.error || Number(response.statusCode??200)>=400 || typeof id!=='string' || !id.trim() || msg.key?.fromMe!==true || ['ERROR','FAILED'].includes(String(msg.status).toUpperCase())) throw new Error('Evolution não confirmou o aceite. Resultado incerto: não reenviar automaticamente.');\nif(ctx.mode==='test' && (typeof jid!=='string'||jid.split('@')[0]!==lead.telefone_limpo||!/@(s\\.whatsapp\\.net|c\\.us)$/.test(jid))) throw new Error('Comprovante não corresponde ao telefone de teste. Requer verificação.');\nconst callback_payload={protocolVersion:3,searchId:ctx.searchId,automationRunId:ctx.automationRunId,executionId:ctx.executionId,lead_key:lead['Lead Key'],telefone:lead.telefone_limpo,status:'enviado',mensagem_enviada:true,data_envio:new Date().toISOString(),messageText:lead.mensagem_final,messageId:id,attemptKey:ctx.executionId+':'+lead['Lead Key']};\nreturn [{json:{...lead,callback_payload},pairedItem:{item:0}}];"
       },
       "name": "Confirmar Aceite da Evolution",
       "id": "fda46b61-4756-471a-8bb1-85a5ad9aad28",
@@ -1623,9 +1623,121 @@
         36112,
         22432
       ]
+    },
+    {
+      "id": "scanradar-Teste-autorizado-pelo-app-",
+      "name": "Teste autorizado pelo app?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        34464,
+        21352
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "test-mode",
+              "leftValue": "={{ $(\"Contexto da Pesquisa\").first().json.mode === 'test' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "scanradar-test-recipient",
+      "name": "Preparar destinatário de teste",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        34544,
+        21302
+      ],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "jsCode": "const ctx=$(\"Contexto da Pesquisa\").first().json;\nif(ctx.mode!=='test'||ctx.testLead?.['Lead Key']!=='test:'+ctx.automationRunId) throw new Error('Teste não autorizado.');\nreturn [{json:{...ctx.testLead,Website:'',Status:'pendente','Mensagem Enviada':'','Data de Envio':''},pairedItem:{item:0}}];"
+      }
+    },
+    {
+      "id": "scanradar-Teste--pular-planilha-de-enviado-",
+      "name": "Teste: pular planilha de enviado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        39528,
+        21248
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "test-mode",
+              "leftValue": "={{ $(\"Contexto da Pesquisa\").first().json.mode === 'test' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "scanradar-Teste--pular-planilha-de-inv-lido-",
+      "name": "Teste: pular planilha de inválido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        38808,
+        22064
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "test-mode",
+              "leftValue": "={{ $(\"Contexto da Pesquisa\").first().json.mode === 'test' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
     }
   ],
-  "pinData": {},
   "connections": {
     "Webhook - Executar Prospecção": {
       "main": [
@@ -1700,7 +1812,7 @@
       "main": [
         [
           {
-            "node": "Ler Leads (Google Sheets)1",
+            "node": "Teste autorizado pelo app?",
             "type": "main",
             "index": 0
           }
@@ -2097,7 +2209,7 @@
       "main": [
         [
           {
-            "node": "Marcar como Enviado1",
+            "node": "Teste: pular planilha de enviado?",
             "type": "main",
             "index": 0
           }
@@ -2108,7 +2220,7 @@
       "main": [
         [
           {
-            "node": "Marcar como Inválido1",
+            "node": "Teste: pular planilha de inválido?",
             "type": "main",
             "index": 0
           }
@@ -2460,6 +2572,78 @@
         [
           {
             "node": "Preparar Conclusão da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Teste autorizado pelo app?": {
+      "main": [
+        [
+          {
+            "node": "Preparar destinatário de teste",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ler Leads (Google Sheets)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar destinatário de teste": {
+      "main": [
+        [
+          {
+            "node": "Normalizar Campos da Planilha",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha da Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Teste: pular planilha de enviado?": {
+      "main": [
+        [
+          {
+            "node": "Recuperar Registro de Envio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Marcar como Enviado1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Teste: pular planilha de inválido?": {
+      "main": [
+        [
+          {
+            "node": "Recuperar Registro de Inválido",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Marcar como Inválido1",
             "type": "main",
             "index": 0
           }
